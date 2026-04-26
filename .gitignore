@@ -1,0 +1,195 @@
+# =============================================================================
+# .gitignore – DevSecOps Pipeline on GKE
+# =============================================================================
+
+# =============================================================================
+# TERRAFORM
+# =============================================================================
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+*.tfplan
+*.tfplan.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+
+# =============================================================================
+# SECRETS & CREDENTIALS – KHÔNG BAO GIỜ COMMIT
+# =============================================================================
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.ca-bundle
+*.jks
+*.keystore
+*secret*
+*secrets*
+*credential*
+*credentials*
+*_token
+*.token
+.vault-token
+vault-keys.json
+vault-init.json
+kubeconfig
+kubeconfig-*
+*.kubeconfig
+gcp-sa-key.json
+gcp-credentials.json
+service-account*.json
+application-credentials.json
+
+# Các file .env chứa secret (giữ lại .env.example làm template)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# =============================================================================
+# HELM
+# =============================================================================
+# Chart dependencies
+charts/
+*.tgz
+# Helm release values override (chứa secret)
+helm/**/values-prod.yaml
+helm/**/values-secret.yaml
+helm/**/values-override.yaml
+!helm/**/values-prod.yaml.example
+
+# =============================================================================
+# KUBERNETES
+# =============================================================================
+# Không commit file manifest sinh ra từ helm template
+generated-manifests/
+rendered/
+# Override kubeconfig cục bộ
+*-kubeconfig.yaml
+*.local.yaml
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+# Build context artifacts
+**/docker-compose.override.yml
+.docker/
+# Layer cache (nếu dùng BuildKit local)
+/var/lib/docker/
+
+# =============================================================================
+# JENKINS
+# =============================================================================
+jenkins/workspace/
+jenkins/jobs/*/builds/
+jenkins/secrets/
+jenkins/users/
+jenkins/nodes/
+jenkins/plugins/
+jenkins/logs/
+jenkins/war/
+jenkins/.cache/
+jenkins/fingerprints/
+jenkins/updates/
+# Jenkins shared library secrets
+jenkins/vars/*secret*
+
+# =============================================================================
+# SECURITY SCAN REPORTS – lưu artifact Jenkins, không cần trong Git
+# =============================================================================
+reports/
+scan-results/
+*.sarif
+gitleaks-report.json
+trivy-report.json
+trivy-fs-report.json
+sonar-report.json
+checkov-report.json
+zap-report.html
+zap-report.json
+zap-report.xml
+defectdojo-import.json
+
+# =============================================================================
+# PYTHON (Checkov, scripts, OWASP ZAP helper)
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+dist/
+build/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =============================================================================
+# NODE / JAVASCRIPT (k6 scripts, tooling)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+dist/
+.cache/
+
+# =============================================================================
+# GO (nếu có custom tool hoặc OTel instrumentation)
+# =============================================================================
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.sum.bak
+
+# =============================================================================
+# IDE & EDITOR
+# =============================================================================
+# VS Code
+.vscode/
+
+# =============================================================================
+# LOGS & TEMP
+# =============================================================================
+*.log
+logs/
+tmp/
+temp/
+.tmp/
+*.tmp
+*.bak
+*.orig
+*.rej
+
+# =============================================================================
+# DEMO SCRIPTS OUTPUT
+# =============================================================================
+demo-scripts/output/
+demo-scripts/*.html
+demo-scripts/*.json
+load-test-results/
+k6-output/
