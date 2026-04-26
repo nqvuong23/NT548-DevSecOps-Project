@@ -1,4 +1,4 @@
-# 📋 Bảng Phân Công Công Việc – Đồ Án DevSecOps Pipeline trên GKE
+# Đồ Án DevSecOps triển khai Microservice trên GKE
 
 ## Table of contents
 
