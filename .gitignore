@@ -6,7 +6,7 @@
 # TERRAFORM
 # =============================================================================
 .terraform/
-.terraform.lock.hcl
+# .terraform.lock.hcl  # File này bắt buộc phải có vì nó khóa cứng phiên bản của các provider (ví dụ: hashicorp/google v5.45.2) để đảm bảo rằng khi pull code về chạy terraform init, máy sẽ tải đúng phiên bản y hệt giữa các máy, tránh tình trạng xung đột hạ tầng do lệch version.
 *.tfstate
 *.tfstate.backup
 *.tfstate.*.backup

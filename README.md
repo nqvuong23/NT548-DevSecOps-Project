@@ -27,6 +27,7 @@ devsecops-project/
 │   │   ├── gke/
 │   │   └── k8s-bootstrap/
 │   └── main.tf
+|   └── iam.tf
 │   └── variables.tf
 │   └── outputs.tf
 │   └── providers.tf
@@ -49,7 +50,7 @@ devsecops-project/
 │   ├── scenario2-load-test.js
 │   └── scenario3-security-sim.sh
 ├── static/
-└── READE.md
+└── README.md
 └── .gitignore
 ```
 
@@ -269,6 +270,32 @@ VPC, subnet, secondary IP ranges, Cloud NAT, Cloud Router, GCS backend, Service 
 - Module `networking` hoạt động: `terraform plan/apply` tạo được VPC, subnet, NAT thành công
 - GCS bucket lưu state, không còn state local
 - File `outputs.tf` export đủ `vpc_id`, `subnet_id`, `service_account_email` để các module sau dùng
+
+#### Bổ sung thông tin cho phần Bootstrap Step (Bước chuẩn bị trước khi chạy Terraform)
+Để giải quyết bài toán là "Terraform cần GCS bucket để lưu file state, nhưng nếu dùng Terraform tạo bucket thì state của quá trình tạo đó sẽ lưu ở đâu?", nên là cần thực hiện tạo GCS Bucket thủ công bằng lệnh `gcloud` trước khi chạy Terraform.
+
+Mở GCP Cloud Shell hoặc Terminal có cài đặt Google Cloud SDK và chạy các lệnh sau:
+
+```bash
+# 1. Lấy tự động Project ID
+export PROJECT_ID=$(gcloud config get-value project)
+
+# 2. Đặt tên bucket (gắn kèm project ID để đảm bảo tính duy nhất)
+export BUCKET_NAME="devsecops-tfstate-$PROJECT_ID"
+export REGION="us-central1" # Hoặc asia-southeast1 tùy cấu hình
+
+# 3. Tạo bucket
+gcloud storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$REGION
+
+# 4. Bật tính năng Versioning cho bucket (Bắt buộc để an toàn state)
+gcloud storage buckets update gs://$BUCKET_NAME --versioning
+
+# 5. Lấy tên bucket để điền vào providers.tf
+echo "Điền tên bucket này vào providers.tf: $BUCKET_NAME"
+
+```
+
+Các lệnh trên đã được chạy và tạo thành công GCS Bucket!
 
 ---
 
