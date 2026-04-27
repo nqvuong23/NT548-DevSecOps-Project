@@ -297,6 +297,18 @@ echo "Điền tên bucket này vào providers.tf: $BUCKET_NAME"
 
 Các lệnh trên đã được chạy và tạo thành công GCS Bucket!
 
+#### Bổ sung thông tin về các Workspace đã được tạo
+Đã thực hiện tạo 3 Workspace là dev, staging và prod. 
+
+Dùng câu lệnh bên dưới để kiểm tra danh sách các workspace đang có: 
+```bash
+terraform workspace list
+```
+Dùng câu lệnh bên dưới để chọn workspace làm việc:
+```bash
+terraform workspace select <ten_workspace>
+```
+
 ---
 
 ### TASK 1.2 – Terraform Module: GKE Cluster & Node Pools
