@@ -317,9 +317,9 @@ terraform workspace select <ten_workspace>
 
 Viết module `gke` để tạo GKE cluster (private cluster, release channel STABLE). Định nghĩa 3 node pool với đúng cấu hình:
 
-- `platform-pool`: 3 node `e2-standard-2`, taint/label `pool=platform`
+- `platform-pool`: 2 node `e2-standard-2`, taint/label `pool=platform`
 - `observation-pool`: 2 node `e2-standard-2`, taint/label `pool=observation`
-- `app-pool`: autoscaling min=2 max=4 node `e2-medium`, taint/label `pool=app`
+- `app-pool`: autoscaling min=1 max=2 node `e2-standard-2`, taint/label `pool=app`
 
 Cấu hình cluster addons: Workload Identity, GCS Fuse CSI, các addon cần thiết. Cấu hình `kubeconfig` output. Cài đặt các network policy và cấu hình logging/monitoring cơ bản của GKE.
 
