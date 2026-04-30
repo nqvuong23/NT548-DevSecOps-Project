@@ -50,3 +50,25 @@ output "ingress_static_ip" {
   description = "The Static IP address for Ingress NGINX"
   value       = module.networking.ingress_static_ip
 }
+
+# Xuất thông tin GKE Cluster
+output "gke_cluster_name" {
+  description = "The Name of the GKE Cluster"
+  value       = module.gke.cluster_name
+}
+
+output "gke_cluster_endpoint" {
+  description = "The Endpoint of the GKE Cluster API server"
+  value       = module.gke.cluster_endpoint
+  sensitive   = true
+}
+
+output "gke_cluster_location" {
+  description = "The Location of the GKE Cluster"
+  value       = module.gke.cluster_location
+}
+
+output "kubeconfig_command" {
+  description = "Lệnh gcloud để cấu hình kubeconfig kết nối cluster"
+  value       = module.gke.kubeconfig_command
+}
