@@ -14,11 +14,6 @@ output "gke_subnet_name" {
   value       = module.networking.gke_subnet_name
 }
 
-output "platform_subnet_name" {
-  description = "The Name of the Platform Subnet"
-  value       = module.networking.platform_subnet_name
-}
-
 # Xuất thông tin Service Account Email để module GKE sử dụng
 output "gke_service_account_email" {
   description = "Email of the GKE Service Account"

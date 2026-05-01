@@ -4,31 +4,23 @@ resource "google_compute_network" "vpc" {
   auto_create_subnetworks = false
 }
 
-# Tạo Subnet 1 cho GKE Cluster
+# Tạo Subnet cho GKE Cluster
 resource "google_compute_subnetwork" "gke_subnet" {
   name          = "gke-subnet"
-  ip_cidr_range = "10.0.1.0/24"
+  ip_cidr_range = var.gke_cidr_range
   region        = var.region
   network       = google_compute_network.vpc.id
 
   # Cấu hình Secondary Ranges cho Pod và Service
   secondary_ip_range {
     range_name    = "gke-pod-range"
-    ip_cidr_range = "10.1.0.0/16"
+    ip_cidr_range = var.gke_pod_cidr_range
   }
 
   secondary_ip_range {
     range_name    = "gke-service-range"
-    ip_cidr_range = "10.2.0.0/20"
+    ip_cidr_range = var.gke_service_cidr_range
   }
-}
-
-# Tạo Subnet 2 cho Platform/Tools
-resource "google_compute_subnetwork" "platform_subnet" {
-  name          = "platform-subnet"
-  ip_cidr_range = "10.0.2.0/24"
-  region        = var.region
-  network       = google_compute_network.vpc.id
 }
 
 # Tạo Cloud Router
@@ -47,6 +39,25 @@ resource "google_compute_router_nat" "nat" {
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }
 
+# Cloud DNS: Private zone cho internal domain
+resource "google_dns_managed_zone" "internal_dns" {
+  name        = "internal-dns-zone"
+  dns_name    = "internal.devsecops.local."
+  description = "Private DNS zone for internal tool domains"
+  visibility  = "private"
+
+  private_visibility_config {
+    networks {
+      network_url = google_compute_network.vpc.id
+    }
+  }
+}
+
+# Tạo Static IP cho Ingress NGINX (Load Balancer)
+resource "google_compute_global_address" "ingress_static_ip" {
+  name = "ingress-nginx-static-ip"
+}
+
 # Firewall Rule: Allow Internal Traffic
 resource "google_compute_firewall" "allow_internal" {
   name    = "allow-internal"
@@ -62,8 +73,8 @@ resource "google_compute_firewall" "allow_internal" {
     protocol = "icmp"
   }
 
-  source_ranges = ["10.0.0.0/16", "10.1.0.0/16", "10.2.0.0/20"]
-  target_tags   = ["gke-node"] # Giới hạn đối tượng nhận traffic nội bộ
+  source_ranges = [var.gke_cidr_range, var.gke_pod_cidr_range, var.gke_service_cidr_range]
+  target_tags   = ["gke-node"] 
 }
 
 # Firewall Rule: Allow Ingress (Load Balancer ports 80/443)
@@ -76,23 +87,8 @@ resource "google_compute_firewall" "allow_ingress" {
     ports    = ["80", "443"]
   }
 
-  source_ranges = ["0.0.0.0/0"]
+  source_ranges = var.allow_ingress_source_ranges
 }
-
-# Cloud DNS: Private zone cho internal domain
-resource "google_dns_managed_zone" "internal_dns" {
-  name        = "internal-dns-zone"
-  dns_name    = "internal.devsecops.local."
-  description = "Private DNS zone for internal tool domains"
-  visibility  = "private"
-
-  private_visibility_config {
-    networks {
-      network_url = google_compute_network.vpc.id
-    }
-  }
-}
-
 
 # Firewall Rule: Allow Health Check từ Google Load Balancer
 resource "google_compute_firewall" "allow_health_check" {
@@ -103,11 +99,6 @@ resource "google_compute_firewall" "allow_health_check" {
     protocol = "tcp"
   }
 
-  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
+  source_ranges = var.allow_health_check_source_ranges
   target_tags   = ["gke-node"]
-}
-
-# Tạo Static IP cho Ingress NGINX (Load Balancer)
-resource "google_compute_global_address" "ingress_static_ip" {
-  name = "ingress-nginx-static-ip"
 }

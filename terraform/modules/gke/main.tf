@@ -100,7 +100,7 @@ resource "google_container_node_pool" "platform_pool" {
   location = var.zone
   cluster  = google_container_cluster.primary.name
 
-  node_count = 2
+  node_count = var.platform_node_pool_count
 
   # Upgrade strategy: rolling update an toàn (surge 1, unavailable 0)
   upgrade_settings {
@@ -114,7 +114,7 @@ resource "google_container_node_pool" "platform_pool" {
   }
 
   node_config {
-    machine_type    = "e2-standard-2"
+    machine_type    = var.platform_node_pool_machine_type
     disk_size_gb    = 50
     disk_type       = "pd-standard"
     service_account = var.gke_service_account_email
@@ -151,7 +151,7 @@ resource "google_container_node_pool" "observation_pool" {
   location = var.zone
   cluster  = google_container_cluster.primary.name
 
-  node_count = 2
+  node_count = var.observation_node_pool_count
 
   upgrade_settings {
     max_surge       = 1
@@ -164,7 +164,7 @@ resource "google_container_node_pool" "observation_pool" {
   }
 
   node_config {
-    machine_type    = "e2-standard-2"
+    machine_type    = var.observation_node_pool_machine_type
     disk_size_gb    = 50
     disk_type       = "pd-standard"
     service_account = var.gke_service_account_email
@@ -201,8 +201,8 @@ resource "google_container_node_pool" "app_pool" {
 
   # Autoscaling: cluster autoscaler tự scale trong [min, max]
   autoscaling {
-    min_node_count = 1
-    max_node_count = 2
+    min_node_count = var.app_node_pool_min_count
+    max_node_count = var.app_node_pool_max_count
   }
 
   upgrade_settings {
@@ -216,7 +216,7 @@ resource "google_container_node_pool" "app_pool" {
   }
 
   node_config {
-    machine_type    = "e2-standard-2"
+    machine_type    = var.app_node_pool_machine_type
     disk_size_gb    = 50
     disk_type       = "pd-standard"
     service_account = var.gke_service_account_email

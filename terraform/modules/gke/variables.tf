@@ -11,13 +11,11 @@ variable "region" {
 variable "zone" {
   description = "GCP Zone cho zonal cluster (tránh vượt quota CPUS_ALL_REGIONS)"
   type        = string
-  default     = "us-central1-a"
 }
 
 variable "cluster_name" {
   description = "Tên GKE cluster"
   type        = string
-  default     = "devsecops-gke"
 }
 
 variable "vpc_name" {
@@ -48,5 +46,32 @@ variable "gke_service_account_email" {
 variable "master_ipv4_cidr_block" {
   description = "CIDR block cho GKE master endpoint (private cluster)"
   type        = string
-  default     = "172.16.0.0/28"
+}
+
+variable "platform_node_pool_count" {
+  type = number
+}
+
+variable "platform_node_pool_machine_type" {
+  type = string
+}
+
+variable "observation_node_pool_count" {
+  type = number
+}
+
+variable "observation_node_pool_machine_type" {
+  type = string
+}
+
+variable "app_node_pool_min_count" {
+  type = number
+}
+
+variable "app_node_pool_max_count" {
+  type = number
+}
+
+variable "app_node_pool_machine_type" {
+  type = string
 }

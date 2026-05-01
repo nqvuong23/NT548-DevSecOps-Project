@@ -1,0 +1,58 @@
+# Mẫu thiết kế phân tách workload trên GKE
+# Pool 1: platform-pool (Label: pool=platform | Taint: pool=platform:NoSchedule)
+# Pool 2: observation-pool (Label: pool=observation | Taint: pool=observation:NoSchedule)
+# Pool 3: app-pool   (Label: pool=app | Taint: pool=app:NoSchedule)
+
+# 1. Dành cho các Tools CI/CD (Jenkins, Sonar, ...)
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: pool
+          operator: In
+          values:
+          - platform
+tolerations:
+- key: "pool"
+  operator: "Equal"
+  value: "platform"
+  effect: "NoSchedule"
+
+---
+
+# 2. Dành cho các Observation Tool (Prometheus, Grafana, Loki, ...)
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      preference:
+        matchExpressions:
+        - key: pool
+          operator: In
+          values:
+          - observation
+tolerations:
+- key: "pool"
+  operator: "Equal"
+  value: "observation"
+  effect: "NoSchedule"
+
+---
+
+# 3. Dành cho Microservices (App)
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      preference:
+        matchExpressions:
+        - key: pool
+          operator: In
+          values:
+          - app
+tolerations:
+- key: "pool"
+  operator: "Equal"
+  value: "app"
+  effect: "NoSchedule"

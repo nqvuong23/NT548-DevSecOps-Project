@@ -13,11 +13,6 @@ output "gke_subnet_name" {
   value       = google_compute_subnetwork.gke_subnet.name
 }
 
-output "platform_subnet_name" {
-  description = "The Name of the Platform Subnet"
-  value       = google_compute_subnetwork.platform_subnet.name
-}
-
 output "gke_pod_secondary_range_name" {
   description = "The Name of the GKE Pod secondary range"
   value       = google_compute_subnetwork.gke_subnet.secondary_ip_range[0].range_name
