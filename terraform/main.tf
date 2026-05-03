@@ -37,5 +37,9 @@ module "gke" {
 module "k8s-bootstrap" {
   source = "./modules/k8s-bootstrap"
 
-  namespaces = var.gke_namespaces
+  namespaces                  = var.gke_namespaces
+  nginx_helm_namespace        = var.nginx_helm_namespace
+  nginx_helm_repo_url         = var.nginx_helm_repo_url
+  nginx_helm_values_file_path = var.nginx_helm_values_file_path
+  nginx_static_ip             = module.networking.ingress_static_ip
 }

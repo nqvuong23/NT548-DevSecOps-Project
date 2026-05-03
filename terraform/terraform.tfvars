@@ -33,3 +33,7 @@ gke_namespaces = [
   "security",
   "app"
 ]
+nginx_helm_namespace        = "app"
+nginx_helm_repo_url         = "https://kubernetes.github.io/ingress-nginx"
+nginx_helm_values_file_path = "${path.root}/../helm-chart/ingress-nginx/values.yaml"
+

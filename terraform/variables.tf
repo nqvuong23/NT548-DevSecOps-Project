@@ -68,3 +68,15 @@ variable "gke_namespaces" {
   type = list(string)
 }
 
+variable "nginx_helm_repo_url" {
+  type = string
+}
+
+variable "nginx_helm_namespace" {
+  type = string
+}
+
+variable "nginx_helm_values_file_path" {
+  type = string
+}
+

@@ -17,34 +17,39 @@ resource "kubernetes_namespace_v1" "main" {
 # Cài đặt Ingress-Nginx qua Helm
 resource "helm_release" "ingress_nginx" {
   name       = "ingress-nginx"
-  repository = "https://kubernetes.github.io/ingress-nginx"
+  repository = var.nginx_helm_repo_url
   chart      = "ingress-nginx"
-  namespace  = "app"
+  namespace  = var.nginx_helm_namespace
+
+  values = [
+    file(var.nginx_helm_values_file_path)
+  ]
 
   set = [
     {
-      name  = "controller.ingressClassResource.name"
-      value = "nginx"
-    },
-    {
-      name  = "controller.service.externalTrafficPolicy"
-      value = "Local"
+      name  = "controller.service.loadBalancerIP"
+      value = var.nginx_static_ip
     }
+  ]
+
+  depends_on = [
+    kubernetes_namespace_v1.main,
+    # helm_release.cert_manager 
   ]
 }
 
 # Cài đặt Cert-Manager (Cần thiết cho SSL/TLS)
-resource "helm_release" "cert_manager" {
-  name       = "cert-manager"
-  repository = "https://charts.jetstack.io"
-  chart      = "cert-manager"
-  namespace  = "security"
-  version    = "v1.20.2"
+# resource "helm_release" "cert_manager" {
+#   name       = "cert-manager"
+#   repository = "https://charts.jetstack.io"
+#   chart      = "cert-manager"
+#   namespace  = "security"
+#   version    = "v1.20.2"
 
-  set = [
-    {
-      name  = "installCRDs"
-      value = "true"
-    }
-  ]
-}
+#   set = [
+#     {
+#       name  = "installCRDs"
+#       value = "true"
+#     }
+#   ]
+# }
