@@ -6,12 +6,19 @@ variable "project_id" {
 variable "region" {
   description = "GCP Region"
   type        = string
-  default     = "us-central1"
 
   validation {
     condition     = contains(["us-central1", "asia-southeast1"], var.region)
     error_message = "Region phải là us-central1 hoặc asia-southeast1."
   }
+}
+
+variable "nginx_ip_name" {
+  type = string
+}
+
+variable "dns_zone_name" {
+  type = string
 }
 
 variable "gke_cidr_range" {
@@ -80,3 +87,10 @@ variable "nginx_helm_values_file_path" {
   type = string
 }
 
+variable "cert_manager_helm_repo_url" {
+  type = string
+}
+
+variable "cert_manager_helm_namespace" {
+  type = string
+}

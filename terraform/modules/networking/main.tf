@@ -40,23 +40,23 @@ resource "google_compute_router_nat" "nat" {
 }
 
 # Cloud DNS: Private zone cho internal domain
-resource "google_dns_managed_zone" "internal_dns" {
-  name        = "internal-dns-zone"
-  dns_name    = "internal.devsecops.local."
-  description = "Private DNS zone for internal tool domains"
-  visibility  = "private"
+# resource "google_dns_managed_zone" "internal_dns" {
+#   name        = "internal-dns-zone"
+#   dns_name    = "internal.devsecops.local."
+#   description = "Private DNS zone for internal tool domains"
+#   visibility  = "private"
 
-  private_visibility_config {
-    networks {
-      network_url = google_compute_network.vpc.id
-    }
-  }
-}
+#   private_visibility_config {
+#     networks {
+#       network_url = google_compute_network.vpc.id
+#     }
+#   }
+# }
 
 # Tạo Static IP cho Ingress NGINX (Load Balancer)
-resource "google_compute_global_address" "ingress_static_ip" {
-  name = "ingress-nginx-static-ip"
-}
+# resource "google_compute_global_address" "ingress_static_ip" {
+#   name = "ingress-nginx-static-ip"
+# }
 
 # Firewall Rule: Allow Internal Traffic
 resource "google_compute_firewall" "allow_internal" {

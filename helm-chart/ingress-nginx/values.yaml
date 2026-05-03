@@ -154,8 +154,8 @@ controller:
     #   apiGroup: k8s.example.com
     #   kind: IngressParameters
     #   name: external-lb
-    # -- For backwards compatibility with ingress.class annotation, use ingressClass.
-    # Algorithm is as follows, first ingressClassName is considered, if not present, controller looks for ingress.class annotation
+  # -- For backwards compatibility with ingress.class annotation, use ingressClass.
+  # Algorithm is as follows, first ingressClassName is considered, if not present, controller looks for ingress.class annotation
   ingressClass: nginx
   # -- Labels to add to the pod container metadata
   podLabels: {}
@@ -252,10 +252,14 @@ controller:
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   ##
   tolerations:
-    - key: "pool"
-      operator: "Equal"
-      value: "app"
-      effect: "NoSchedule"
+  - key: "pool"
+    operator: "Equal"
+    value: "app"
+    effect: "NoSchedule"
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+  #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
   # -- Affinity and anti-affinity rules for server scheduling to nodes
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
@@ -264,11 +268,11 @@ controller:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
-          - matchExpressions:
-              - key: pool
-                operator: In
-                values:
-                  - app
+        - matchExpressions:
+          - key: pool
+            operator: In
+            values:
+            - app
   # # An example of preferred pod anti-affinity, weight is in the range 1-100
   # podAntiAffinity:
   #   preferredDuringSchedulingIgnoredDuringExecution:
@@ -489,9 +493,9 @@ controller:
     #   - type: Pods
     #     value: 2
     #     periodSeconds: 60
-    # -- Enable mimalloc as a drop-in replacement for malloc.
-    ## ref: https://github.com/microsoft/mimalloc
-    ##
+  # -- Enable mimalloc as a drop-in replacement for malloc.
+  ## ref: https://github.com/microsoft/mimalloc
+  ##
   enableMimalloc: true
   ## Override NGINX template
   customTemplate:
@@ -506,7 +510,8 @@ controller:
       # -- Labels to be added to the external controller service.
       labels: {}
     # -- Annotations to be added to the external controller service. See `controller.service.internal.annotations` for annotations to be added to the internal controller service.
-    annotations:
+    annotations: 
+      cloud.google.com/load-balancer-type: "External"
       networking.gke.io/load-balancer-type: "External"
     # -- Labels to be added to both controller services.
     labels: {}
@@ -1013,13 +1018,13 @@ controller:
       #   annotations:
       #     description: Too many 4XXs
       #     summary: More than 5% of all requests returned 4XX, this requires your attention
-      # -- Improve connection draining when ingress controller pod is deleted using a lifecycle hook:
-      # With this new hook, we increased the default terminationGracePeriodSeconds from 30 seconds
-      # to 300, allowing the draining of connections up to five minutes.
-      # If the active connections end before that, the pod will terminate gracefully at that time.
-      # To effectively take advantage of this feature, the Configmap feature
-      # worker-shutdown-timeout new value is 240s instead of 10s.
-      ##
+  # -- Improve connection draining when ingress controller pod is deleted using a lifecycle hook:
+  # With this new hook, we increased the default terminationGracePeriodSeconds from 30 seconds
+  # to 300, allowing the draining of connections up to five minutes.
+  # If the active connections end before that, the pod will terminate gracefully at that time.
+  # To effectively take advantage of this feature, the Configmap feature
+  # worker-shutdown-timeout new value is 240s instead of 10s.
+  ##
   lifecycle:
     preStop:
       exec:

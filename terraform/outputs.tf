@@ -41,10 +41,10 @@ output "gke_service_secondary_range_name" {
 }
 
 
-output "ingress_static_ip" {
-  description = "The Static IP address for Ingress NGINX"
-  value       = module.networking.ingress_static_ip
-}
+# output "ingress_static_ip" {
+#   description = "The Static IP address for Ingress NGINX"
+#   value       = module.networking.ingress_static_ip
+# }
 
 # Xuất thông tin GKE Cluster
 output "gke_cluster_name" {

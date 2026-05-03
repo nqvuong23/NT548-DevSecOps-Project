@@ -18,3 +18,10 @@ variable "nginx_static_ip" {
   type = string
 }
 
+variable "cert_manager_helm_repo_url" {
+  type = string
+}
+
+variable "cert_manager_helm_namespace" {
+  type = string
+}

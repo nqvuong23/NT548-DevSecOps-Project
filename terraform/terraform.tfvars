@@ -1,5 +1,7 @@
-project_id = "devsecops-subject-project"
-region     = "us-central1"
+project_id    = "devsecops-subject-project"
+region        = "us-central1"
+nginx_ip_name = "nginx-ingress-static-ip"
+dns_zone_name = "my-project-dns-zone"
 
 # Network Module
 gke_cidr_range         = "10.0.0.0/22"
@@ -36,4 +38,5 @@ gke_namespaces = [
 nginx_helm_namespace        = "app"
 nginx_helm_repo_url         = "https://kubernetes.github.io/ingress-nginx"
 nginx_helm_values_file_path = "${path.root}/../helm-chart/ingress-nginx/values.yaml"
-
+cert_manager_helm_repo_url  = "https://charts.jetstack.io"
+cert_manager_helm_namespace = "security"

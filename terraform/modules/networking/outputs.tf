@@ -23,7 +23,7 @@ output "gke_service_secondary_range_name" {
   value       = google_compute_subnetwork.gke_subnet.secondary_ip_range[1].range_name
 }
 
-output "ingress_static_ip" {
-  description = "The Static IP address for Ingress NGINX"
-  value       = google_compute_global_address.ingress_static_ip.address
-}
+# output "ingress_static_ip" {
+#   description = "The Static IP address for Ingress NGINX"
+#   value       = google_compute_global_address.ingress_static_ip.address
+# }

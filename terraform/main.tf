@@ -1,3 +1,14 @@
+# Lấy thông tin IP đã tạo thủ công
+data "google_compute_address" "nginx_ip" {
+  name   = var.nginx_ip_name
+  region = var.region
+}
+
+# Lấy thông tin DNS Zone đã tạo thủ công
+data "google_dns_managed_zone" "my_zone" {
+  name = var.dns_zone_name
+}
+
 # Gọi module networking
 module "networking" {
   source = "./modules/networking"
@@ -7,6 +18,9 @@ module "networking" {
   gke_cidr_range         = var.gke_cidr_range
   gke_pod_cidr_range     = var.gke_pod_cidr_range
   gke_service_cidr_range = var.gke_service_cidr_range
+  dns_name               = data.google_dns_managed_zone.my_zone.dns_name
+  zone_name              = data.google_dns_managed_zone.my_zone.name
+  ip_address             = data.google_compute_address.nginx_ip.address
 }
 
 # Gọi module GKE
@@ -41,5 +55,7 @@ module "k8s-bootstrap" {
   nginx_helm_namespace        = var.nginx_helm_namespace
   nginx_helm_repo_url         = var.nginx_helm_repo_url
   nginx_helm_values_file_path = var.nginx_helm_values_file_path
-  nginx_static_ip             = module.networking.ingress_static_ip
+  nginx_static_ip             = data.google_compute_address.nginx_ip.address
+  cert_manager_helm_repo_url  = var.cert_manager_helm_repo_url
+  cert_manager_helm_namespace = var.cert_manager_helm_namespace
 }
