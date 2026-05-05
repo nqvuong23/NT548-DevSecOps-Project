@@ -26,22 +26,30 @@ devsecops-project/
 │   ├── modules/
 │   │   ├── networking/
 │   │   ├── gke/
-│   │   └── k8s-bootstrap/
+│   │   ├── k8s-bootstrap/
 │   │   └── iam/
-│   └── main.tf
-│   └── variables.tf
-│   └── outputs.tf
-│   └── providers.tf
-│   └── terrafrom.tfvars
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   └── terraform.tfvars
 ├── helm-chart/
 │   ├── microservices/
 │   │   ├── frontend/
 │   │   ├── cartservice/
 │   │   └── ... (10-12 other services)
-│   └── ingress-nginx/
-│   |   └── values.yaml
-│   └── jenkins/
-│   |   └── values.yaml
+│   ├── ingress-nginx/
+│   │   ├── values.yaml
+│   │   └── ingress.yaml
+│   ├── cert-manager/
+│   │   ├── cluster_issuer.yaml
+│   │   └── values.yaml
+│   ├── sonarqube/
+│   │   └── values.yaml
+│   ├── jenkins/
+│   │   ├── values.yaml
+│   │   └── rbac.yaml
+│   ├── node_affinity_toleration_templates.yaml
 │   └── ...
 ├── jenkins/
 │   ├── Jenkinsfile
@@ -54,10 +62,12 @@ devsecops-project/
 │   ├── scenario2-load-test.js
 │   └── scenario3-security-sim.sh
 ├── static/
-└── README.md
-└── .gitignore
-└── NOTE.md
-└── setup.sh
+├── README.md
+├── .gitignore
+├── NOTE.md
+├── setup.sh
+├── .gitleaks.toml
+└── sonar-project.properties
 ```
 
 ---
@@ -498,6 +508,24 @@ Gitleaks, `.gitleaks.toml`, secret scanning report, SonarQube Helm chart, sonar-
 - Stage Gitleaks trong Jenkinsfile: chạy được, fail khi có secret hardcode test, pass khi clean
 - Stage SonarQube: report hiện trên SonarQube dashboard, Quality Gate trả kết quả về Jenkins
 - Kết quả scan import thành công vào DefectDojo (thấy findings trên DefectDojo UI)
+
+---
+
+**📌 Hướng dẫn truy cập UI SonarQube (Dành cho thành viên nhóm)**
+
+Do ở giai đoạn này SonarQube đang chạy bảo mật bên trong mạng nội bộ của K8s (chưa public Ingress), các thành viên cần dùng lệnh `port-forward` để truy cập:
+
+**Bước 1:** Đảm bảo máy cá nhân đã dùng lệnh `gcloud` để kết nối tới đúng Cluster của đồ án.
+
+**Bước 2:** Mở Terminal/CMD và chạy lệnh sau để mở đường hầm:
+```bash
+kubectl port-forward svc/sonarqube-release-sonarqube 9000:9000 -n sonarqube
+```
+(Lưu ý: Giữ nguyên cửa sổ Terminal này trong suốt quá trình xem)
+
+**Bước 3:** Mở trình duyệt web và truy cập: http://localhost:9000
+
+**Bước 4:** Đăng nhập với thông tin Username và Password được cung cấp
 
 ---
 

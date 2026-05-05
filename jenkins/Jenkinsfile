@@ -1,0 +1,114 @@
+pipeline {
+    // BƯỚC 1: Định nghĩa Pod Template cho Dynamic Agent chạy trên GKE
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  # Ép Pod Agent chạy vào platform-pool theo thiết kế hệ thống
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: pool
+            operator: In
+            values:
+            - platform
+  # Cần Toleration vì node pool này có Taint "NoSchedule"
+  tolerations:
+  - key: "pool"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+  
+  containers:
+  # Container JNLP mặc định để kết nối với Jenkins Controller
+  - name: jnlp
+    image: jenkins/inbound-agent:latest-jdk17
+  
+  # Thêm container Gitleaks để thực hiện quét Secret (Task 2.2 - Step 1)
+  - name: gitleaks
+    image: zricethezav/gitleaks:v8.18.2
+    command:
+    - sleep
+    args:
+    - infinity
+  - name: sonar-scanner
+    image: sonarsource/sonar-scanner-cli:5
+    command:
+    - sleep
+    args:
+    - infinity
+"""
+        }
+    }
+
+    stages {
+        // Stage mặc định: Kéo code từ GitHub về không gian làm việc của Agent
+        stage('Git Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // BƯỚC 2: Stage thực hiện quét Secret (Task 2.2 - Step 2)
+        stage('Secret Scanning - Gitleaks') {
+            steps {
+                container('gitleaks') {
+                    script {
+                        echo ">>> Đang bắt đầu quét Secret bằng Gitleaks..."
+                        def exitCode = sh(
+                            script: 'gitleaks detect --source . --config .gitleaks.toml --verbose --report-format json --report-path gitleaks-report.json',
+                            returnStatus: true
+                        )
+                        if (exitCode == 1) {
+                            error "Gitleaks phát hiện secret! Xem file gitleaks-report.json trong Artifacts để biết chi tiết."
+                        } else if (exitCode != 0) {
+                            error "Gitleaks lỗi không xác định, exit code: ${exitCode}"
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('SAST - SonarQube') {
+            steps {
+                container('sonar-scanner') {
+                    script {
+                        echo ">>> Đang bắt đầu phân tích mã nguồn với SonarQube..."
+                        
+                        // Lấy token từ két sắt của Jenkins (tránh hardcode)
+                        withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                            // Chạy lệnh quét và truyền token vào
+                            sh 'sonar-scanner -Dsonar.token=$SONAR_TOKEN'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate Check') {
+            steps {
+                // Đặt thời gian chờ tối đa là 10 phút để tránh Pipeline bị treo vĩnh viễn
+                timeout(time: 10, unit: 'MINUTES') {
+                    script {
+                        echo ">>> Đang chờ kết quả Quality Gate từ SonarQube Webhook..."
+                        // Lệnh này ép Jenkins dừng lại, ngồi đợi Webhook gọi sang.
+                        // Nếu SonarQube báo FAIL -> abortPipeline: true sẽ đánh rớt luôn Jenkins Pipeline.
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Pipeline bị hủy vì không vượt qua được SonarQube Quality Gate! Trạng thái: ${qg.status}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

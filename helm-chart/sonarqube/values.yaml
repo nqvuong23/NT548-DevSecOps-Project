@@ -1,0 +1,66 @@
+# helm-chart/sonarqube/values.yaml
+# Bật phiên bản Community Build 
+edition: ""
+community:
+  enabled: true
+
+# Note: In a real production environment, this should be referenced via a Kubernetes Secret.
+# Using a dummy passcode here for academic lab purposes to bypass Helm validation.
+monitoringPasscode: "dummy-passcode-for-lab-only"
+# Cấu hình lưu trữ (PVC)
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+# Ép SonarQube chạy trên platform-pool
+nodeSelector: {}
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: pool
+          operator: In
+          values:
+          - platform
+
+tolerations:
+- key: "pool"
+  operator: "Equal"
+  value: "platform"
+  effect: "NoSchedule"
+
+# Tắt NGINX ingress mặc định của chart 
+ingress:
+  enabled: false
+
+# Cấu hình PostgreSQL (Database đi kèm SonarQube) cũng phải nằm trên platform-pool
+postgresql:
+  persistence:
+    enabled: true
+    size: 10Gi
+  primary:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: pool
+              operator: In
+              values:
+              - platform
+    tolerations:
+    - key: "pool"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "400m"
+  limits:
+    memory: "4Gi"
+    cpu: "800m"

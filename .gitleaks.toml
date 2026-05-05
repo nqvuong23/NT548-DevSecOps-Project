@@ -1,0 +1,49 @@
+title = "Cấu hình Gitleaks"
+
+# Kế thừa toàn bộ các rule mặc định (rất quan trọng, không set false)
+[extend]
+useDefault = true
+
+# 1. THÊM LUẬT QUÉT RIÊNG (Custom Rules)
+# 1. TỪ KHÓA ĐẶC THÙ CỦA DỰ ÁN & MÔN HỌC
+[[rules]]
+id = "nt548-devsecops-secrets"
+description = "Phát hiện các secret nội bộ được đặt tên theo đồ án NT548 hoặc dự án DevSecOps"
+# Quét các biến kiểu: NT548_PASSWORD=..., devsecops_token: ...
+regex = '''(?i)(nt548|devsecops|project)[_-]?(token|secret|key|pass|password)[=:]\s*["']?[a-zA-Z0-9\-_@!#$%^&*]{10,50}["']?'''
+tags = ["internal", "nt548", "project-secret"]
+
+# 2. BẢO VỆ DATABASE CHO MICROSERVICES
+[[rules]]
+id = "hardcoded-db-credentials"
+description = "Phát hiện mật khẩu kết nối Database (Redis, Postgres, MySQL) bị hardcode"
+# Quét các biến kiểu: db_password="...", REDIS_PASS='...'
+regex = '''(?i)(db|database|mysql|postgres|redis|mongo)[_-]?(pass|password|pwd)[=:]\s*["'][a-zA-Z0-9\-_@!#$%^&*]{8,}["']'''
+tags = ["database", "hardcoded-credentials"]
+
+# 3. BẢO VỆ CÔNG CỤ QUẢN LÝ SECRET TẬP TRUNG (HASHICORP VAULT)
+[[rules]]
+id = "hashicorp-vault-custom"
+description = "Phát hiện Vault Token bị bỏ quên trong mã nguồn thay vì inject qua Vault Agent"
+# Quét các biến chứa token của Vault (thường bắt đầu bằng hvs.)
+regex = '''(?i)(vault)[_-]?(token|secret)[=:]\s*["']?(hvs\.[a-zA-Z0-9\-_]{80,120})["']?'''
+tags = ["vault", "hashicorp", "infrastructure"]
+
+# 4. BẢO VỆ TÀI NGUYÊN GOOGLE CLOUD
+[[rules]]
+id = "gcp-sa-project-specific"
+description = "Phát hiện email của Service Account GCP dự án NT548 bị rò rỉ"
+# Dựa trên Project ID của bạn
+regex = '''(?i)[a-zA-Z0-9\-_]+@nt548-project\.iam\.gserviceaccount\.com'''
+tags = ["gcp", "iam", "nt548-project"]
+
+# 2. DANH SÁCH BỎ QUA (Allowlist)
+[allowlist]
+description = "Bỏ qua các thư mục/file không cần thiết hoặc file sinh ra trong lúc chạy pipeline"
+paths = [
+    # Bỏ qua thư mục chứa kịch bản demo (thường chứa mật khẩu giả để test)
+    '''demo-scripts/.*''',
+    
+    # Bỏ qua chính file report vừa sinh ra để tránh việc nó tự quét chính nó
+    '''gitleaks-report\.json''',
+]
