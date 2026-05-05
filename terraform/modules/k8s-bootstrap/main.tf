@@ -34,22 +34,21 @@ resource "helm_release" "ingress_nginx" {
 
   depends_on = [
     kubernetes_namespace_v1.main,
-    helm_release.cert_manager 
+    # helm_release.cert_manager
   ]
 }
 
 # Cài đặt Cert-Manager (Cần thiết cho SSL/TLS)
-resource "helm_release" "cert_manager" {
-  name       = "cert-manager"
-  repository = var.cert_manager_helm_repo_url
-  chart      = "cert-manager"
-  namespace  = var.cert_manager_helm_namespace
-  version    = "v1.20.2"
+# resource "helm_release" "cert_manager" {
+#   name       = "cert-manager"
+#   repository = var.cert_manager_helm_repo_url
+#   chart      = "cert-manager"
+#   namespace  = var.cert_manager_helm_namespace
+#   version    = "v1.20.2"
 
-  set = [
-    {
-      name  = "installCRDs"
-      value = "true"
-    }
-  ]
-}
+#   timeout = 900
+
+#   values = [
+#     file(var.cert_manager_helm_values_file_path)
+#   ]
+# }

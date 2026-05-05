@@ -8,7 +8,11 @@ variable "region" {
   type        = string
 }
 
-variable "gke_cidr_range" {
+variable "public_cidr_range" {
+  type = string
+}
+
+variable "private_cidr_range" {
   type = string
 }
 
@@ -20,6 +24,10 @@ variable "gke_service_cidr_range" {
   type = string
 }
 
+variable "gke_master_ipv4_cidr_block" {
+  type = string
+}
+
 variable "allow_ingress_source_ranges" {
   type = list(string)
   default = [ "0.0.0.0/0" ]
@@ -28,16 +36,4 @@ variable "allow_ingress_source_ranges" {
 variable "allow_health_check_source_ranges" {
   type = list(string)
   default = ["130.211.0.0/22", "35.191.0.0/16"]
-}
-
-variable "dns_name" {
-  type = string
-}
-
-variable "zone_name" {
-  type = string
-}
-
-variable "ip_address" {
-  type = string
 }

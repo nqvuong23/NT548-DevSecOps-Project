@@ -21,7 +21,15 @@ variable "dns_zone_name" {
   type = string
 }
 
-variable "gke_cidr_range" {
+variable "gg_apis" {
+  type = list(string)
+}
+
+variable "public_cidr_range" {
+  type = string
+}
+
+variable "private_cidr_range" {
   type = string
 }
 
@@ -80,10 +88,6 @@ variable "nginx_helm_repo_url" {
 }
 
 variable "nginx_helm_namespace" {
-  type = string
-}
-
-variable "nginx_helm_values_file_path" {
   type = string
 }
 

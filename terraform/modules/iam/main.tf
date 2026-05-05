@@ -1,3 +1,10 @@
+resource "google_project_service" "api" {
+  for_each = toset(var.gg_apis)
+  service  = each.key
+
+  disable_on_destroy = false
+}
+
 # 1. Service Account cho GKE Worker Nodes
 resource "google_service_account" "gke_sa" {
   account_id   = "gke-node-sa"

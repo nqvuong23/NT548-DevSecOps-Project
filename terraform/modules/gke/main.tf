@@ -7,9 +7,6 @@
 
 resource "google_container_cluster" "primary" {
   name = var.cluster_name
-
-  # Zonal cluster: dùng zone thay vì region
-  # Regional cluster (region) = node_count × 3 zones → vượt quota CPUS_ALL_REGIONS
   location = var.zone
 
   # Xóa default node pool, sử dụng 3 node pool riêng bên dưới
@@ -28,6 +25,7 @@ resource "google_container_cluster" "primary" {
   # --- Networking ---
   network    = var.vpc_name
   subnetwork = var.subnet_name
+  networking_mode          = "VPC_NATIVE"
 
   # VPC-native cluster với secondary ranges cho Pod và Service
   ip_allocation_policy {
@@ -51,10 +49,6 @@ resource "google_container_cluster" "primary" {
   workload_identity_config {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
-
-  # --- Network Policy (Dataplane V2 / Cilium) ---
-  # ADVANCED_DATAPATH bao gồm NodeLocal DNSCache và network policy enforcement
-  datapath_provider = "ADVANCED_DATAPATH"
 
   # --- Logging: SYSTEM_COMPONENTS + WORKLOADS ---
   logging_config {
@@ -99,7 +93,6 @@ resource "google_container_node_pool" "platform_pool" {
   name     = "platform-pool"
   location = var.zone
   cluster  = google_container_cluster.primary.name
-
   node_count = var.platform_node_pool_count
 
   # Upgrade strategy: rolling update an toàn (surge 1, unavailable 0)
@@ -114,6 +107,7 @@ resource "google_container_node_pool" "platform_pool" {
   }
 
   node_config {
+    preemptible  = false
     machine_type    = var.platform_node_pool_machine_type
     disk_size_gb    = 50
     disk_type       = "pd-standard"
@@ -124,19 +118,7 @@ resource "google_container_node_pool" "platform_pool" {
       pool = "platform"
     }
 
-    taint {
-      key    = "pool"
-      value  = "platform"
-      effect = "NO_SCHEDULE"
-    }
-
-    # Tags cho firewall rules trong networking module
     tags = ["gke-node"]
-
-    # Workload Identity: dùng GKE metadata server thay vì instance metadata
-    workload_metadata_config {
-      mode = "GKE_METADATA"
-    }
   }
 }
 
@@ -150,7 +132,6 @@ resource "google_container_node_pool" "observation_pool" {
   name     = "observation-pool"
   location = var.zone
   cluster  = google_container_cluster.primary.name
-
   node_count = var.observation_node_pool_count
 
   upgrade_settings {
@@ -164,6 +145,7 @@ resource "google_container_node_pool" "observation_pool" {
   }
 
   node_config {
+    preemptible  = false
     machine_type    = var.observation_node_pool_machine_type
     disk_size_gb    = 50
     disk_type       = "pd-standard"
@@ -174,18 +156,10 @@ resource "google_container_node_pool" "observation_pool" {
       pool = "observation"
     }
 
-    taint {
-      key    = "pool"
-      value  = "observation"
-      effect = "NO_SCHEDULE"
-    }
-
     tags = ["gke-node"]
-
-    workload_metadata_config {
-      mode = "GKE_METADATA"
-    }
   }
+
+  depends_on = [google_container_node_pool.platform_pool]
 }
 
 # =============================================================================
@@ -216,6 +190,7 @@ resource "google_container_node_pool" "app_pool" {
   }
 
   node_config {
+    preemptible  = false
     machine_type    = var.app_node_pool_machine_type
     disk_size_gb    = 50
     disk_type       = "pd-standard"
@@ -233,9 +208,7 @@ resource "google_container_node_pool" "app_pool" {
     }
 
     tags = ["gke-node"]
-
-    workload_metadata_config {
-      mode = "GKE_METADATA"
-    }
   }
+
+  depends_on = [google_container_node_pool.observation_pool]
 }

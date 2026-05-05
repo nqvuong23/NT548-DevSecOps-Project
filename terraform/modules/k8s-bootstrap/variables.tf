@@ -25,3 +25,7 @@ variable "cert_manager_helm_repo_url" {
 variable "cert_manager_helm_namespace" {
   type = string
 }
+
+variable "cert_manager_helm_values_file_path" {
+  type = string
+}

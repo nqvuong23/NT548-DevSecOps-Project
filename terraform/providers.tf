@@ -3,7 +3,7 @@ terraform {
 
   # Cấu hình GCS Remote Backend để lưu state
   backend "gcs" {
-    bucket = "devsecops-tfstate-devsecops-subject-project"
+    bucket = "nt548-project-bucket"
     prefix = "terraform/state"
   }
 

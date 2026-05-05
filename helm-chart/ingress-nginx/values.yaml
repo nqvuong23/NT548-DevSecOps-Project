@@ -882,7 +882,20 @@ controller:
         enabled: false
       nodeSelector:
         kubernetes.io/os: linux
-      tolerations: []
+      tolerations: 
+      - key: "pool"
+        operator: "Equal"
+        value: "app"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                - app
       # -- Labels to be added to patch job resources
       labels: {}
       # -- Security context for secret creation & webhook patch pods
@@ -1092,7 +1105,11 @@ defaultBackend:
   # -- Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   ##
-  tolerations: []
+  tolerations: 
+  - key: "pool"
+    operator: "Equal"
+    value: "app"
+    effect: "NoSchedule"
   #  - key: "key"
   #    operator: "Equal|Exists"
   #    value: "value"
@@ -1100,7 +1117,15 @@ defaultBackend:
 
   # -- Affinity and anti-affinity rules for server scheduling to nodes
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
-  affinity: {}
+  affinity: 
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: pool
+            operator: In
+            values:
+            - app
   # # An example of preferred pod anti-affinity, weight is in the range 1-100
   # podAntiAffinity:
   #   preferredDuringSchedulingIgnoredDuringExecution:

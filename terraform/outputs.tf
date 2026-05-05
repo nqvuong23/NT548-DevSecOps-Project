@@ -11,23 +11,7 @@ output "vpc_name" {
 
 output "gke_subnet_name" {
   description = "The Name of the GKE Subnet"
-  value       = module.networking.gke_subnet_name
-}
-
-# Xuất thông tin Service Account Email để module GKE sử dụng
-output "gke_service_account_email" {
-  description = "Email of the GKE Service Account"
-  value       = google_service_account.gke_sa.email
-}
-
-output "jenkins_service_account_email" {
-  description = "Email of the Jenkins Service Account"
-  value       = google_service_account.jenkins_sa.email
-}
-
-output "argocd_service_account_email" {
-  description = "Email of the ArgoCD Service Account"
-  value       = google_service_account.argocd_sa.email
+  value       = module.networking.private_subnet_name
 }
 
 output "gke_pod_secondary_range_name" {
