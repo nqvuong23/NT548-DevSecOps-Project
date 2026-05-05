@@ -37,3 +37,15 @@ variable "allow_health_check_source_ranges" {
   type = list(string)
   default = ["130.211.0.0/22", "35.191.0.0/16"]
 }
+
+variable "managed_zone_name" {
+  type = string
+}
+
+variable "dns_subdomains" {
+  type = list(string)
+}
+
+variable "domain_name" {
+  type    = string
+}

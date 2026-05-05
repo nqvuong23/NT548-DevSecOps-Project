@@ -13,14 +13,6 @@ variable "region" {
   }
 }
 
-variable "nginx_ip_name" {
-  type = string
-}
-
-variable "dns_zone_name" {
-  type = string
-}
-
 variable "gg_apis" {
   type = list(string)
 }
@@ -38,6 +30,18 @@ variable "gke_pod_cidr_range" {
 }
 
 variable "gke_service_cidr_range" {
+  type = string
+}
+
+variable "managed_zone_name" {
+  type = string
+}
+
+variable "dns_subdomains" {
+  type = list(string)
+}
+
+variable "domain_name" {
   type = string
 }
 

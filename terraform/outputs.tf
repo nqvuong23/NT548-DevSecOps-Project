@@ -24,11 +24,10 @@ output "gke_service_secondary_range_name" {
   value       = module.networking.gke_service_secondary_range_name
 }
 
-
-# output "ingress_static_ip" {
-#   description = "The Static IP address for Ingress NGINX"
-#   value       = module.networking.ingress_static_ip
-# }
+output "ingress_static_ip" {
+  description = "The Static IP address for Ingress NGINX"
+  value       = module.networking.nginx-ip
+}
 
 # Xuất thông tin GKE Cluster
 output "gke_cluster_name" {

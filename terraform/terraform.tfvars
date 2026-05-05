@@ -1,7 +1,5 @@
-project_id    = "nt548-project"
-region        = "us-central1"
-nginx_ip_name = "nginx-ingress-static-ip"
-dns_zone_name = "devsecops-project-dns-zone"
+project_id = "nt548-project"
+region     = "us-central1"
 gg_apis = [
   "compute.googleapis.com",
   "container.googleapis.com",
@@ -14,6 +12,18 @@ public_cidr_range      = "10.0.0.0/19"
 private_cidr_range     = "10.0.32.0/19"
 gke_pod_cidr_range     = "172.16.0.0/14"
 gke_service_cidr_range = "172.20.0.0/18"
+managed_zone_name      = "devsecops-zone"
+domain_name            = "vuongdevops.io.vn"
+dns_subdomains = [
+  "jenkins",
+  "sonarqube",
+  "argocd",
+  "harbor",
+  "grafana",
+  "defectdojo",
+  "vault",
+  "jaeger"
+]
 
 # GKE Module
 gke_cluster_name           = "devsecops-gke"

@@ -79,6 +79,18 @@ resource "google_compute_address" "nginx" {
   network_tier = "PREMIUM"
 }
 
+resource "google_dns_record_set" "record" {
+  for_each = toset(var.dns_subdomains)
+  
+  name = "${each.value}.${var.domain_name}."
+  type = "A"
+  ttl  = 300
+
+  managed_zone = var.managed_zone_name
+
+  rrdatas = [google_compute_address.nginx.address]
+}
+
 # Firewall Rule: Allow Internal Traffic
 resource "google_compute_firewall" "gke_internal" {
   name    = "gke-internal"

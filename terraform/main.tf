@@ -22,8 +22,10 @@ module "networking" {
   gke_pod_cidr_range         = var.gke_pod_cidr_range
   gke_service_cidr_range     = var.gke_service_cidr_range
   gke_master_ipv4_cidr_block = var.gke_master_ipv4_cidr_block
-
-  depends_on = [module.iam]
+  dns_subdomains             = var.dns_subdomains
+  domain_name                = var.domain_name
+  managed_zone_name          = var.managed_zone_name
+  depends_on                 = [module.iam]
 }
 
 # Gọi module GKE

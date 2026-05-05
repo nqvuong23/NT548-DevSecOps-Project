@@ -1,1 +1,0 @@
-Jenkins URL: http://jenkins.vuongdevops.io.vn 

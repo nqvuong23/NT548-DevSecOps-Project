@@ -8,7 +8,7 @@
 set -euo pipefail
 
 NAMESPACE="jenkins"
-RELEASE_JENKINS_NAME="jenkins-release-v1"
+RELEASE_JENKINS_NAME="jenkins-release"
 GKE_CLUSTER_NAME="devsecops-gke"
 GKE_LOCATION="us-central1-a"
 GG_PROJECT_ID="nt548-project"
@@ -17,6 +17,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JENKINS_HELM_CHART_DIR="${PROJECT_ROOT}/helm-chart/jenkins"
 NGINX_HELM_CHART_DIR="${PROJECT_ROOT}/helm-chart/ingress-nginx"
 
+echo ">>> Apply Terraform..."
 terraform apply -target=module.iam -target=module.networking -target=module.gke -auto-approve
 terraform apply -target=module.k8s_bootstrap -auto-approve
 
