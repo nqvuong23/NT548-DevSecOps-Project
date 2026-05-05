@@ -27,12 +27,12 @@ kubectl apply -f ./ingress.yaml"
 
 ## Danh sách các URL truy cập vào các tool
 
-Jenkins URL          : http://jenkins.vuongdevops.io.vn 
-Sonarqueue URL       : http://sonarqube.vuongdevops.io.vn 
-Argocd URL           : http://argocd.vuongdevops.io.vn 
-Harbor URL           : http://harbor.vuongdevops.io.vn 
-Grafana URL          : http://grafana.vuongdevops.io.vn 
-DefectDojo URL       : http://defectdojo.vuongdevops.io.vn 
-Hashicorp Vault URL  : http://vault.vuongdevops.io.vn 
-Jaeger URL           : http://jaeger.vuongdevops.io.vn 
+- Jenkins URL          : http://jenkins.vuongdevops.io.vn 
+- Sonarqueue URL       : http://sonarqube.vuongdevops.io.vn 
+- Argocd URL           : http://argocd.vuongdevops.io.vn 
+- Harbor URL           : http://harbor.vuongdevops.io.vn 
+- Grafana URL          : http://grafana.vuongdevops.io.vn 
+- DefectDojo URL       : http://defectdojo.vuongdevops.io.vn 
+- Hashicorp Vault URL  : http://vault.vuongdevops.io.vn 
+- Jaeger URL           : http://jaeger.vuongdevops.io.vn 
 
