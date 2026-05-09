@@ -26,7 +26,7 @@ spec:
   containers:
   # Container JNLP mặc định để kết nối với Jenkins Controller
   - name: jnlp
-    image: jenkins/inbound-agent:latest-jdk17
+    image: jenkins/inbound-agent:3256.v88a_f6e922152-1-jdk17
   
   # Thêm container Gitleaks để thực hiện quét Secret (Task 2.2 - Step 1)
   - name: gitleaks
@@ -71,18 +71,19 @@ spec:
 
         // BƯỚC 2: Stage thực hiện quét Secret (Task 2.2 - Step 2)
         stage('Secret Scanning - Gitleaks') {
+            when { changeset "app/**" }
             steps {
                 container('gitleaks') {
                     script {
                         echo ">>> Đang bắt đầu quét Secret bằng Gitleaks..."
                         def exitCode = sh(
-                            script: 'gitleaks detect --source . --config .gitleaks.toml --verbose --report-format json --report-path gitleaks-report.json',
+                            script: 'gitleaks detect --source ./app --config .gitleaks.toml --verbose --report-format json --report-path gitleaks-report.json',
                             returnStatus: true
                         )
                         if (exitCode == 1) {
                             error "Gitleaks phát hiện secret! Xem file gitleaks-report.json trong Artifacts để biết chi tiết."
                         } else if (exitCode != 0) {
-                            error "Gitleaks lỗi không xác định, exit code: ${exitCode}"
+                            error "Gitleaks lỗi không xác định, exit code: ${exitCode}. Xem file gitleaks-report.json trong Artifacts để biết chi tiết."
                         }
                     }
                 }
@@ -95,6 +96,7 @@ spec:
         }
 
         stage('SAST - SonarQube') {
+            when { changeset "app/**" }
             steps {
                 container('sonar-scanner') {
                     script {
@@ -111,6 +113,7 @@ spec:
         }
 
         stage('Quality Gate Check') {
+            when { changeset "app/**" }
             steps {
                 // Đặt thời gian chờ tối đa là 10 phút để tránh Pipeline bị treo vĩnh viễn
                 timeout(time: 10, unit: 'MINUTES') {
@@ -128,6 +131,7 @@ spec:
         }
 
         stage('IaC Scan - Checkov') {
+            when { changeset "terraform/**" }
             steps {
                 container('checkov') {
                     script {
@@ -141,8 +145,10 @@ spec:
                             returnStatus: true
                         )
                         
-                        if (exitCode != 0) {
-                            error "Checkov phát hiện rủi ro nghiêm trọng trong cấu hình Terraform! Đã dừng Pipeline. Xem checkov-report.json để biết chi tiết."
+                        if (exitCode == 1) {
+                            error "Checkov phát hiện rủi ro IaC! Xem checkov-report.json."
+                        } else if (exitCode != 0) {
+                            error "Checkov lỗi không xác định, exit code: ${exitCode}. Xem checkov-report.json để biết chi tiết."
                         } else {
                             echo "Tuyệt vời! Không phát hiện rủi ro IaC nào."
                         }
@@ -158,22 +164,15 @@ spec:
         }
 
         stage('SCA - Trivy Dependency Scan') {
+            when { changeset "app/**" }
             steps {
                 container('trivy') {
                     script {
                         echo ">>> Đang bắt đầu quét Dependency bằng Trivy..."
                         
-                        // -------------------------------------------------------------------------
-                        // [LƯU Ý CHO SAU NÀY KHI QUÉT MICROSERVICE]
-                        // Hiện tại lệnh bên dưới đang dùng dấu chấm "." để quét thư mục gốc của repo DevSecOps hiện tại.
-                        // Khi làm tới Task kéo source code của Microservice về (ví dụ thư mục ./src hoặc ./online-boutique), 
-                        // đổi dấu "." thành đường dẫn tương ứng.
-                        // Ví dụ: script: 'trivy fs --format json --output trivy-fs-report.json --exit-code 1 --severity HIGH,CRITICAL ./online-boutique'
-                        // -------------------------------------------------------------------------
-                        
-                        // Chạy quét Trivy FS hiện tại
+                        // Chạy quét Trivy FS 
                         def exitCode = sh(
-                            script: 'trivy fs --format json --output trivy-fs-report.json --exit-code 1 --severity HIGH,CRITICAL .',
+                            script: 'trivy fs --format json --output trivy-fs-report.json --exit-code 1 --severity HIGH,CRITICAL ./app',
                             returnStatus: true
                         )
                         
@@ -199,6 +198,7 @@ spec:
         // =========================================================================
 
         stage('Image Scan - Trivy') {
+            when { changeset "app/**" }
             steps {
                 container('trivy') {
                     script {

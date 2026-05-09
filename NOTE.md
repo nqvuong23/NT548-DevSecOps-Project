@@ -1,4 +1,4 @@
-## Các lệnh triển khai hạ tầng Terrfomr (Nhớ chạy theo đúng thứ tự)
+## Các lệnh triển khai hạ tầng Terrform (Nhớ chạy theo đúng thứ tự)
 
 ```
 # Tại thư mục gốc cd vào thư mục terrform
@@ -47,17 +47,17 @@ kubectl port-forward svc/sonarqube-release-sonarqube 9000:9000 -n sonarqube
 
 **Bước 2: Tạo Project**
 1. Chọn tab **Projects** trên thanh menu trên cùng.
-2. Bấm **Create a local project** > Chọn **Manually**.
+2. Bấm **Create a local project**.
 3. Tại ô *Project display name* và *Project key*, nhập chính xác tên: `DevSecOps_Nhom10`.
 4. Chọn **Follows the instance's default**
 5. Bấm **Creat project**.
 
 **Bước 3: Tạo Token để cấp quyền cho Jenkins**
-1. Nhấp vào biểu tượng Avatar ở góc phải trên cùng > Chọn **My Account**.
-2. Chuyển sang tab **Security**.
+1. Chọn dự án **DevSecOps_Nhom10** vừa tạo.
+2. Tại **Project onboarding** chọn **Locally**.
 3. Ở phần *Generate Tokens*:
    - Name: Nhập tên tùy ý (VD: `jenkins-token`).
-   - Type: Chọn `Global Analysis Token` (hoặc User Token).
+   - Type: Chọn `Global Analysis Token` (hoặc Project Token).
    - Expires in: Chọn `No expiration`.
 4. Bấm **Generate**. 
 5. **QUAN TRỌNG:** Copy ngay đoạn mã Token vừa hiện ra và lưu tạm ra Notepad (vì nó chỉ hiện 1 lần duy nhất).
@@ -87,7 +87,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 
 **Bước 2: Lưu Token của SonarQube vào Jenkins**
 1. Ở menu bên trái, chọn **Manage Jenkins** > **Credentials**.
-2. Nhấp vào domain `(global)` > Bấm **Add Credentials** (Góc phải trên).
+2. Nhấp vào domain `(global)` > Bấm **Add Credentials**.
 3. Điền các thông tin sau:
    - Kind: Chọn `Secret text`.
    - Secret: Dán đoạn mã Token của SonarQube đã copy ở Phần 1 vào đây.
@@ -95,17 +95,26 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
    - Description: `Token ket noi SonarQube`.
 4. Bấm **Create**.
 
-<!-- **Bước 3: Tạo Pipeline Job**
+**Bước 3: Tạo Pipeline Job**
 1. Quay ra trang chủ Jenkins, bấm **New Item**.
 2. Nhập tên Job: `DevSecOps-Pipeline-Nhom10`.
 3. Chọn loại **Pipeline** và bấm **OK**.
 4. Cuộn xuống mục **Pipeline**, thiết lập như sau:
    - Definition: Chọn `Pipeline script from SCM`.
    - SCM: Chọn `Git`.
-   - Repository URL: Dán link GitHub repo chứa mã nguồn của nhóm vào.
-   - Branch Specifier: `*/main` (hoặc nhánh bạn đang làm việc).
+   - Repository URL: Dán link GitHub repo của nhóm vào.
+   - Branch Specifier: `*/main`.
    - Script Path: Nhập `jenkins/Jenkinsfile`.
-5. Bấm **Save**. -->
+5. Tích vào ô **GitHub hook trigger for GITScm polling** ở mục Build Triggers.
+6. Bấm **Save**.
+
+**Bước 4: Cấu hình GitHub Webhook (tự động trigger Pipeline khi push code)**
+1. Vào GitHub repo → **Settings** → **Webhooks** → **Add webhook**.
+2. Điền thông tin:
+   - Payload URL: `http://jenkins.vuongdevops.io.vn/github-webhook/`
+   - Content type: `application/json`
+   - Which events: chọn **Just the push event**.
+3. Bấm **Add webhook**.
 
 ---
 
