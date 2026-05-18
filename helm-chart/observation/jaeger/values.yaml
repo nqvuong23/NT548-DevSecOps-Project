@@ -1,0 +1,17 @@
+storage:
+  type: memory
+
+jaeger:
+  enabled: true
+  replicas: 1
+  service:
+    type: ClusterIP
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - observation

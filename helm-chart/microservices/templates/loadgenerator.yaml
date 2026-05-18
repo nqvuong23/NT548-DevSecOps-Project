@@ -51,6 +51,7 @@ spec:
       {{- else }}
       serviceAccountName: default
       {{- end }}
+      {{- include "onlineboutique.appScheduling" . | nindent 6 }}
       terminationGracePeriodSeconds: 5
       restartPolicy: Always
       {{- if .Values.securityContext.enable }}
