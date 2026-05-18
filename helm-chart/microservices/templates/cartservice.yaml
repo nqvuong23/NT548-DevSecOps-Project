@@ -52,6 +52,7 @@ spec:
       {{- else }}
       serviceAccountName: default
       {{- end }}
+      {{- include "onlineboutique.appScheduling" . | nindent 6 }}
       terminationGracePeriodSeconds: 5
       {{- if .Values.securityContext.enable }}
       securityContext:
@@ -231,6 +232,7 @@ spec:
       {{- else }}
       serviceAccountName: default
       {{- end }}
+      {{- include "onlineboutique.appScheduling" . | nindent 6 }}
       {{- if .Values.securityContext.enable }}
       securityContext:
         fsGroup: 1000

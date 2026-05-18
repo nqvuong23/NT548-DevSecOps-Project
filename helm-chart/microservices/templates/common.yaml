@@ -12,6 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- define "onlineboutique.appScheduling" -}}
+{{- with .Values.appScheduling.affinity }}
+affinity:
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.appScheduling.tolerations }}
+tolerations:
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}
+
+{{- define "onlineboutique.collectorEndpoint" -}}
+{{- .Values.opentelemetryCollector.endpoint | default (printf "%s:4317" .Values.opentelemetryCollector.name) -}}
+{{- end }}
+
 {{- if .Values.networkPolicies.create }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

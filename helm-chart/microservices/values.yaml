@@ -42,14 +42,34 @@ authorizationPolicies:
   create: false
 
 opentelemetryCollector:
+  # Inject COLLECTOR_SERVICE_ADDR for services that read it from source code.
+  enabled: true
   create: false
   name: opentelemetrycollector
+  endpoint: "$(NODE_IP):4317"
+  useNodeIp: true
   # Specifies the project id for the otel collector. If set as "PROJECT_ID" (default value), an initContainer will automatically retrieve the project id value from the metadata server.
   projectId: "PROJECT_ID"
 
+appScheduling:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - app
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: app
+      effect: NoSchedule
+
 googleCloudOperations:
   profiler: false
-  tracing: false
+  tracing: true
   metrics: false
 
 seccompProfile:

@@ -48,6 +48,7 @@ spec:
       {{- else }}
       serviceAccountName: default
       {{- end }}
+      {{- include "onlineboutique.appScheduling" . | nindent 6 }}
       {{- if .Values.securityContext.enable }}
       securityContext:
         fsGroup: 1000
@@ -92,9 +93,15 @@ spec:
           value: "{{ .Values.currencyService.name }}:7000"
         - name: CART_SERVICE_ADDR
           value: "{{ .Values.cartService.name }}:7070"
-        {{- if .Values.opentelemetryCollector.create }}
+        {{- if and (or .Values.opentelemetryCollector.enabled .Values.opentelemetryCollector.create) .Values.opentelemetryCollector.useNodeIp }}
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        {{- end }}
+        {{- if or .Values.opentelemetryCollector.enabled .Values.opentelemetryCollector.create }}
         - name: COLLECTOR_SERVICE_ADDR
-          value: "{{ .Values.opentelemetryCollector.name }}:4317"
+          value: {{ include "onlineboutique.collectorEndpoint" . | quote }}
         - name: OTEL_SERVICE_NAME
           value: "{{ .Values.checkoutService.name }}"
         {{- end }}

@@ -48,6 +48,7 @@ spec:
       {{- else }}
       serviceAccountName: default
       {{- end }}
+      {{- include "onlineboutique.appScheduling" . | nindent 6 }}
       terminationGracePeriodSeconds: 5
       {{- if .Values.securityContext.enable }}
       securityContext:
@@ -75,9 +76,15 @@ spec:
         env:
         - name: PORT
           value: "8080"
-        {{- if .Values.opentelemetryCollector.create }}
+        {{- if and (or .Values.opentelemetryCollector.enabled .Values.opentelemetryCollector.create) .Values.opentelemetryCollector.useNodeIp }}
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        {{- end }}
+        {{- if or .Values.opentelemetryCollector.enabled .Values.opentelemetryCollector.create }}
         - name: COLLECTOR_SERVICE_ADDR
-          value: "{{ .Values.opentelemetryCollector.name }}:4317"
+          value: {{ include "onlineboutique.collectorEndpoint" . | quote }}
         - name: OTEL_SERVICE_NAME
           value: "{{ .Values.emailService.name }}"
         {{- end }}
