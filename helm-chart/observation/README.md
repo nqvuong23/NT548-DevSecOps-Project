@@ -9,6 +9,8 @@ This directory contains Helm values for Task 4.2:
 
 Terraform currently labels `observation-pool` with `pool=observation` and does not define a taint for it in `terraform/modules/gke/main.tf`. These values therefore use node affinity for observation workloads and no observation toleration. If the pool is tainted later, add the matching toleration to Loki, Jaeger, and `otel-gateway`.
 
+Loki is configured for lab/demo use with filesystem storage on an `emptyDir` mounted at `/var/loki`. Logs are not persistent across Loki pod deletion. Switch `singleBinary.persistence.enabled` to a PVC-backed setup for longer-lived environments.
+
 ## Helm repositories
 
 ```bash
