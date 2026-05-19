@@ -71,13 +71,13 @@ spec:
 
         // BƯỚC 2: Stage thực hiện quét Secret (Task 2.2 - Step 2)
         stage('Secret Scanning - Gitleaks') {
-            when { changeset "app/**" }
+            when { changeset "app_src/**" }
             steps {
                 container('gitleaks') {
                     script {
                         echo ">>> Đang bắt đầu quét Secret bằng Gitleaks..."
                         def exitCode = sh(
-                            script: 'gitleaks detect --source ./app --config .gitleaks.toml --verbose --report-format json --report-path gitleaks-report.json',
+                            script: 'gitleaks detect --source ./app_src --config .gitleaks.toml --verbose --report-format json --report-path gitleaks-report.json',
                             returnStatus: true
                         )
                         if (exitCode == 1) {
@@ -96,7 +96,7 @@ spec:
         }
 
         stage('SAST - SonarQube') {
-            when { changeset "app/**" }
+            when { changeset "app_src/**" }
             steps {
                 container('sonar-scanner') {
                     script {
@@ -113,7 +113,7 @@ spec:
         }
 
         stage('Quality Gate Check') {
-            when { changeset "app/**" }
+            when { changeset "app_src/**" }
             steps {
                 // Đặt thời gian chờ tối đa là 10 phút để tránh Pipeline bị treo vĩnh viễn
                 timeout(time: 10, unit: 'MINUTES') {
@@ -164,7 +164,7 @@ spec:
         }
 
         stage('SCA - Trivy Dependency Scan') {
-            when { changeset "app/**" }
+            when { changeset "app_src/**" }
             steps {
                 container('trivy') {
                     script {
@@ -172,7 +172,7 @@ spec:
                         
                         // Chạy quét Trivy FS 
                         def exitCode = sh(
-                            script: 'trivy fs --format json --output trivy-fs-report.json --exit-code 1 --severity HIGH,CRITICAL ./app',
+                            script: 'trivy fs --format json --output trivy-fs-report.json --exit-code 1 --severity HIGH,CRITICAL ./app_src',
                             returnStatus: true
                         )
                         
@@ -198,7 +198,7 @@ spec:
         // =========================================================================
 
         stage('Image Scan - Trivy') {
-            when { changeset "app/**" }
+            when { changeset "app_src/**" }
             steps {
                 container('trivy') {
                     script {

@@ -193,3 +193,10 @@ demo-scripts/*.html
 demo-scripts/*.json
 load-test-results/
 k6-output/
+
+# Gradle cache (adservice - Java)
+app_src/adservice/.gradle/
+
+# .NET build output (cartservice - C#)
+app_src/**/obj/
+app_src/**/bin/

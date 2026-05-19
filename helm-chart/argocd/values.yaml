@@ -1,0 +1,152 @@
+global:
+  domain: argocd.vuongdevops.io.vn
+
+configs:
+  cm:
+    admin.enabled: true
+    timeout.reconciliation: 60s
+    accounts.duy: apiKey, login
+
+  params:
+    server.insecure: "true"
+
+  rbac:
+    policy.default: role:readonly
+    policy.csv: |
+      p, role:devops-admin, applications, *, */*, allow
+      p, role:devops-admin, clusters, get, *, allow
+      p, role:devops-admin, repositories, *, *, allow
+      p, role:devops-admin, projects, *, *, allow
+      p, role:devops-admin, logs, get, */*, allow
+      g, duy, role:devops-admin
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    hosts:
+      - argocd.vuongdevops.io.vn
+    paths:
+      - /
+    pathType: Prefix
+    tls: []
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+repoServer:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+controller:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+applicationSet:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+notifications:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+redis:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+dex:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule

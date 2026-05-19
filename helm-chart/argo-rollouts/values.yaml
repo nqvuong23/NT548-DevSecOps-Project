@@ -1,0 +1,50 @@
+controller:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+  tolerations:
+    - key: "pool"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+dashboard:
+  enabled: true
+  readonly: false
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: pool
+                operator: In
+                values:
+                  - platform
+  tolerations:
+    - key: "pool"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    hosts:
+      - argorollouts.vuongdevops.io.vn
+    paths:
+      - /
+    pathType: Prefix
