@@ -83,3 +83,33 @@ spec:
                 name: jaeger
                 port:
                   number: 16686
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+  namespace: app
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    # cert-manager.io/issuer: "letsencrypt-prod"
+
+spec:
+  ingressClassName: nginx
+  # tls:
+  # - hosts:
+  #   - app.vuongdevops.io.vn
+  #   secretName: app-tls-secret
+  rules:
+    - host: app.vuongdevops.io.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+                  
