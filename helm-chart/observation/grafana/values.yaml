@@ -32,7 +32,7 @@ datasources:
         jsonData:
           derivedFields:
             - name: TraceID
-              matcherRegex: '"?(?:traceID|trace_id|traceid)"?[=:]"?([a-fA-F0-9]{16,32})'
+              matcherRegex: '(?:"?(?:traceID|trace_id|traceid)"?[=:]"?)([a-fA-F0-9]{16,32})'
               datasourceUid: jaeger
               url: '${__value.raw}'
       - name: Jaeger
