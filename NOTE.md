@@ -1,8 +1,8 @@
-## Các lệnh triển khai hạ tầng Terrform (Nhớ chạy theo đúng thứ tự)
+## Các lệnh triển khai hạ tầng Terraform (Nhớ chạy theo đúng thứ tự)
 
 ```
-# Tại thư mục gốc cd vào thư mục terrform
-cd devsecops-project/terrform
+# Tại thư mục gốc cd vào thư mục terraform
+cd terraform
 
 # Add Helm Chart Repo 
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -36,9 +36,16 @@ helm upgrade --install sonarqube-release sonarqube/sonarqube --namespace sonarqu
 
 # Deploy Harbor bằng Helm 
 cd ../harbor
+kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
+HARBOR_ADMIN_PASSWORD="$(openssl rand -base64 24)"
+HARBOR_SECRET_KEY="$(openssl rand -hex 8)"
+HARBOR_DB_PASSWORD="$(openssl rand -base64 24)"
+kubectl create secret generic harbor-admin-password -n harbor --from-literal=HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD}" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic harbor-secret-key -n harbor --from-literal=secretKey="${HARBOR_SECRET_KEY}" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic harbor-database -n harbor --from-literal=POSTGRES_PASSWORD="${HARBOR_DB_PASSWORD}" --dry-run=client -o yaml | kubectl apply -f -
 helm upgrade --install harbor harbor/harbor --namespace harbor --values ./values.yaml --wait --timeout 10m
 
-# Obervation Deploy
+# Observation Deploy
 cd ../observation
 
 # Deploy Loki bằng Helm 
@@ -46,6 +53,9 @@ helm upgrade --install loki grafana/loki -n logging --values ./loki/values.yaml 
 
 # Deploy Jaeger bằng Helm 
 helm upgrade --install jaeger jaegertracing/jaeger -n tracing --values ./jaeger/values.yaml --wait --timeout 10m
+
+# Deploy Grafana bằng Helm
+helm upgrade --install grafana grafana/grafana -n monitoring --values ./grafana/values.yaml --wait --timeout 10m
 
 # Deploy Otel Collector bằng Helm 
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector -n monitoring --values ./otel-gateway/values.yaml --wait --timeout 10m
