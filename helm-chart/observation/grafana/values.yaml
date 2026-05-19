@@ -1,0 +1,53 @@
+replicas: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  hosts:
+    - grafana.vuongdevops.io.vn
+  path: /
+  pathType: Prefix
+
+grafana.ini:
+  server:
+    root_url: http://grafana.vuongdevops.io.vn/
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki-gateway.logging.svc.cluster.local
+        editable: true
+        jsonData:
+          derivedFields:
+            - name: TraceID
+              matcherRegex: '"?(?:traceID|trace_id|traceid)"?[=:]"?([a-fA-F0-9]{16,32})'
+              datasourceUid: jaeger
+              url: '${__value.raw}'
+      - name: Jaeger
+        uid: jaeger
+        type: jaeger
+        access: proxy
+        url: http://jaeger.tracing.svc.cluster.local:16686
+        editable: true
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: pool
+              operator: In
+              values:
+                - observation

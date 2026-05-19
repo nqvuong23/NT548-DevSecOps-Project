@@ -4,10 +4,11 @@ This directory contains Helm values for Task 4.2:
 
 - Loki receives logs.
 - Jaeger receives traces.
+- Grafana exposes Loki and Jaeger datasources.
 - `otel-agent` runs as a DaemonSet on `app-pool`.
 - `otel-gateway` runs as a Deployment on `observation-pool`.
 
-Terraform currently labels `observation-pool` with `pool=observation` and does not define a taint for it in `terraform/modules/gke/main.tf`. These values therefore use node affinity for observation workloads and no observation toleration. If the pool is tainted later, add the matching toleration to Loki, Jaeger, and `otel-gateway`.
+Terraform currently labels `observation-pool` with `pool=observation` and does not define a taint for it in `terraform/modules/gke/main.tf`. These values therefore use node affinity for observation workloads and no observation toleration. If the pool is tainted later, add the matching toleration to Loki, Jaeger, Grafana, and `otel-gateway`.
 
 Loki is configured for lab/demo use with filesystem storage on an `emptyDir` mounted at `/var/loki`. Logs are not persistent across Loki pod deletion. Switch `singleBinary.persistence.enabled` to a PVC-backed setup for longer-lived environments.
 
@@ -32,6 +33,11 @@ helm upgrade --install jaeger jaegertracing/jaeger \
   -n tracing \
   --create-namespace \
   -f helm-chart/observation/jaeger/values.yaml
+
+helm upgrade --install grafana grafana/grafana \
+  -n monitoring \
+  --create-namespace \
+  -f helm-chart/observation/grafana/values.yaml
 
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   -n monitoring \
@@ -87,7 +93,7 @@ Expected scheduling:
 
 ## Grafana datasources
 
-Use these service URLs:
+Grafana is exposed at `http://grafana.vuongdevops.io.vn` and is provisioned with these service URLs:
 
 - Loki: `http://loki-gateway.logging.svc.cluster.local`
 - Jaeger: `http://jaeger.tracing.svc.cluster.local:16686`
