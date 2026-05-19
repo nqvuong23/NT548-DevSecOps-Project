@@ -22,7 +22,8 @@ dns_subdomains = [
   "grafana",
   "defectdojo",
   "vault",
-  "jaeger"
+  "jaeger",
+  "app"
 ]
 
 # GKE Module
