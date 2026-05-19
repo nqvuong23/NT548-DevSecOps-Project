@@ -8,6 +8,7 @@ cd devsecops-project/terrform
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo add jenkins https://charts.jenkins.io
 helm repo add sonarqube https://SonarSource.github.io/helm-chart-sonarqube
+helm repo add harbor https://helm.goharbor.io
 
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
@@ -32,6 +33,10 @@ helm upgrade --install jenkins-release jenkins/jenkins --namespace jenkins --val
 # Deploy SonarQube bằng Helm 
 cd ../sonarqube
 helm upgrade --install sonarqube-release sonarqube/sonarqube --namespace sonarqube --values ./values.yaml --wait --timeout 10m
+
+# Deploy Harbor bằng Helm 
+cd ../harbor
+helm upgrade --install harbor harbor/harbor --namespace harbor --values ./values.yaml --wait --timeout 10m
 
 # Obervation Deploy
 cd ../observation
