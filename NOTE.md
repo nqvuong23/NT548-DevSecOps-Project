@@ -4,9 +4,22 @@
 # Tại thư mục gốc cd vào thư mục terrform
 cd devsecops-project/terrform
 
+# Add Helm Chart Repo 
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo add jenkins https://charts.jenkins.io
+helm repo add sonarqube https://SonarSource.github.io/helm-chart-sonarqube
+
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+# Init Terraform
+terraform init
+
 # Apply Terraform
 terraform apply -target=module.iam -target=module.networking -target=module.gke -auto-approve
-terraform apply -target=module.k8s_bootstrap -auto-approve
+terraform apply -target=module.k8s-bootstrap -auto-approve
 
 # Cập nhập file kubeconfig (nhớ đã xác thực và đăng nhập tài khoản Google bằng gcloud CLI)
 gcloud container clusters get-credentials devsecops-gke --zone us-central1-a --project nt548-project
@@ -14,20 +27,33 @@ gcloud container clusters get-credentials devsecops-gke --zone us-central1-a --p
 # Deploy Jenkins bằng Helm
 cd ../helm-chart/jenkins
 kubectl apply -f ./rbac.yaml
-helm repo add jenkins https://charts.jenkins.io
-helm repo update
 helm upgrade --install jenkins-release jenkins/jenkins --namespace jenkins --values ./values.yaml --wait --timeout 10m
 
 # Deploy SonarQube bằng Helm 
 cd ../sonarqube
-helm repo add sonarqube https://SonarSource.github.io/helm-chart-sonarqube
-helm repo update
-helm upgrade --install sonarqube-release sonarqube/sonarqube --namespace sonarqube --values ./values.yaml --wait --timeout 15m
+helm upgrade --install sonarqube-release sonarqube/sonarqube --namespace sonarqube --values ./values.yaml --wait --timeout 10m
+
+# Obervation Deploy
+cd ../observation
+
+# Deploy Loki bằng Helm 
+helm upgrade --install loki grafana/loki -n logging --values ./loki/values.yaml --wait --timeout 10m
+
+# Deploy Jaeger bằng Helm 
+helm upgrade --install jaeger jaegertracing/jaeger -n tracing --values ./jaeger/values.yaml --wait --timeout 10m
+
+# Deploy Otel Collector bằng Helm 
+helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector -n monitoring --values ./otel-gateway/values.yaml --wait --timeout 10m
+
+# Deploy Otel Agent bằng Helm 
+helm upgrade --install otel-agent open-telemetry/opentelemetry-collector -n monitoring --values ./otel-agent/values.yaml --wait --timeout 10m
 
 # Apply Ingress để forward route tới các service thông qua DNS
 cd ../ingress-nginx
 kubectl apply -f ./ingress.yaml
 ```
+
+---
 
 ## Hướng Dẫn Cấu Hình Thủ Công (UI) Sau Khi Deploy GKE
 
