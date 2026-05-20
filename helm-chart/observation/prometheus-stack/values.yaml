@@ -38,6 +38,8 @@ alertmanager:
 
 grafana:
   enabled: true
+  adminUser: admin
+  adminPassword: admin
   replicas: 1
   service:
     type: ClusterIP
