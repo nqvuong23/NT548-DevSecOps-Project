@@ -167,8 +167,10 @@ spec:
                 container('sonar-scanner') {
                     script {
                         echo ">>> Đang bắt đầu phân tích mã nguồn với SonarQube..."
-                        withCredentials([string(credentialsId: "${SONAR_CREDS_ID}", variable: 'SONAR_TOKEN')]) {
-                            sh 'sonar-scanner -Dsonar.token=$SONAR_TOKEN'
+                        withSonarQubeEnv() {
+                            withCredentials([string(credentialsId: "${SONAR_CREDS_ID}", variable: 'SONAR_TOKEN')]) {
+                                sh 'sonar-scanner -Dsonar.token=$SONAR_TOKEN'
+                            }
                         }
                     }
                 }
