@@ -1,0 +1,4 @@
+helm repo add hashicorp https://helm.releases.hashicorp.com
+helm repo update
+kubectl create namespace vault --dry-run=client -o yaml | kubectl apply -f -
+helm upgrade --install vault hashicorp/vault --namespace vault --values ./helm-chart/vault-hashicorp/values.yaml --wait --timeout 10m
