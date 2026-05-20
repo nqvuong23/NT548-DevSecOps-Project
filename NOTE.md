@@ -141,7 +141,18 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n app --values
 # Apply Ingress để forward route tới các service thông qua DNS
 cd ../ingress-nginx
 kubectl apply -f ./ingress.yaml
+```
 
+---
+
+## Các lệnh xóa hạ tầng
+
+```
+cd terraform
+
+# Apply Terraform
+terraform destroy -target=module.k8s-bootstrap -auto-approve
+terraform destroy -target=module.iam -target=module.networking -target=module.gke -auto-approve
 ```
 
 ---
