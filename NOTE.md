@@ -102,26 +102,28 @@ helm upgrade --install argocd argo/argo-cd -n argocd ---values ./values.yaml --w
 # Deploy Argo Rollouts bằng Helm
 cd ../argo-rollouts
 helm upgrade --install argo-rollouts argo/argo-rollouts -n argo-rollouts --values ./values.yaml --wait --timeout 10m
+```
 
+```
 # Observation Deploy
 cd ../observation
 
 # Deploy kube-prometheus-stack (Prometheus, Alertmanager, Grafana, kube-state-metrics, node-exporter)
-helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace --version 85.2.0 --values ./prometheus-stack/values.yaml --wait --timeout 15m
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring  --version 85.2.0 --values ./prometheus-stack/values.yaml --wait --timeout 10m
+
 kubectl apply -f ./prometheus-stack/rules/nt548-alerts.yaml
 kubectl apply -f ./prometheus-stack/monitors/
 kubectl apply -f ./prometheus-stack/dashboards/scenario2-keda-dashboard-configmap.yaml
 
 # Deploy Loki bằng Helm 
-helm upgrade --install loki grafana/loki -n logging --create-namespace --version 7.0.0 --values ./loki/values.yaml --wait --timeout 10m
+helm upgrade --install loki grafana/loki -n logging --version 7.0.0 --values ./loki/values.yaml --wait --timeout 10m
 
 # Deploy Jaeger bằng Helm 
-helm upgrade --install jaeger jaegertracing/jaeger -n tracing --create-namespace --version 4.8.0 --values ./jaeger/values.yaml --wait --timeout 10m
+helm upgrade --install jaeger jaegertracing/jaeger -n tracing --version 4.8.0 --values ./jaeger/values.yaml --wait --timeout 10m
 
 # Deploy Promtail for app container logs. Grafana is installed by kube-prometheus-stack above.
-helm upgrade --install promtail grafana/promtail -n logging --version 6.17.1 --values ./promtail/values.yaml --wait --timeout 10m
-
 # Standalone Grafana is deprecated. Grafana is installed by kube-prometheus-stack.
+helm upgrade --install promtail grafana/promtail -n logging --version 6.17.1 --values ./promtail/values.yaml --wait --timeout 10m
 
 # Deploy Otel Collector bằng Helm 
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector -n monitoring --version 0.156.0 --values ./otel-gateway/values.yaml --wait --timeout 10m
@@ -131,11 +133,15 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector -n moni
 ```
 
 ```
+# Refresh the existing Terraform-installed ingress-nginx release so metrics are enabled.
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n app --values ./values.yaml --wait --timeout 10m
+```
+
+```
 # Apply Ingress để forward route tới các service thông qua DNS
 cd ../ingress-nginx
-# Refresh the existing Terraform-installed ingress-nginx release so metrics are enabled.
-helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n app --reuse-values --values ./values.yaml --wait --timeout 10m
 kubectl apply -f ./ingress.yaml
+
 ```
 
 ---
