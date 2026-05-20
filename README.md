@@ -7,14 +7,13 @@
 3. [Tech Stack](#tech-stack)
 4. [Pipeline Workflow](#pipeline-workflow)
 5. [Các kịch bản Demo](#các-kịch-bản-demo)
-6. [Hướng dẫn triển khai hạ tầng (Deployment Guide)](#hướng-dẫn-triển-khai-hạ-tầng-deployment-guide)
-7. [Task List](#task-list)
-8. [Nhóm 1 – Triển Khai Hạ Tầng với Terraform](#nhóm-1--triển-khai-hạ-tầng-với-terraform)
-9. [Nhóm 2 – Triển Khai CI Pipeline (Jenkins + Security Scanning)](#nhóm-2--triển-khai-ci-pipeline-jenkins--security-scanning)
-10. [Nhóm 3 – Triển Khai CD Pipeline (ArgoCD, Argo Rollouts & Microservice)](#nhóm-3--triển-khai-cd-pipeline-argocd-argo-rollouts--microservice)
-11. [Nhóm 4 – Triển Khai Observation Stack](#nhóm-4--triển-khai-observation-stack)
-12. [Nhóm 5 – Các Thành Phần Khác](#nhóm-5--các-thành-phần-khác)
-13. [Phụ Lục – Thứ Tự Triển Khai Khuyến Nghị](#phụ-lục--thứ-tự-triển-khai-khuyến-nghị)
+6. [Task List](#task-list)
+7. [Nhóm 1 – Triển Khai Hạ Tầng với Terraform](#nhóm-1--triển-khai-hạ-tầng-với-terraform)
+8. [Nhóm 2 – Triển Khai CI Pipeline (Jenkins + Security Scanning)](#nhóm-2--triển-khai-ci-pipeline-jenkins--security-scanning)
+9. [Nhóm 3 – Triển Khai CD Pipeline (ArgoCD, Argo Rollouts & Microservice)](#nhóm-3--triển-khai-cd-pipeline-argocd-argo-rollouts--microservice)
+10. [Nhóm 4 – Triển Khai Observation Stack](#nhóm-4--triển-khai-observation-stack)
+11. [Nhóm 5 – Các Thành Phần Khác](#nhóm-5--các-thành-phần-khác)
+12. [Phụ Lục – Thứ Tự Triển Khai Khuyến Nghị](#phụ-lục--thứ-tự-triển-khai-khuyến-nghị)
 
 ---
 
@@ -215,79 +214,6 @@ devsecops-project/
 - Grafana: alert hiển thị security event
 - Argo Rollouts UI: rollback thành công, revision giảm về version trước
 - Lệnh kubectl get pods: Pod mới chạy image SHA cũ
-
----
-
-## Hướng dẫn triển khai hạ tầng (Deployment Guide)
-
-### Điều kiện tiên quyết (Prerequisites)
-
-Đảm bảo trên laptop đã cài đặt các công cụ sau:
-
-- **gcloud CLI**: Công cụ dòng lệnh để tương tác với Google Cloud.
-- **Terraform**: Tạo và quản lý hạ tầng Google Cloud.
-- **kubectl**: Thao tác và quản lý tài nguyên K8s.
-- **Helm**: Trình quản lý gói cho K8s.
-
-### Các bước thực hiện
-
-#### **Bước 1: Đăng nhập vào Google Cloud**
-
-```
-gcloud auth application-default login
-```
-
-- Dùng lệnh trên Terminal, nó sẽ redirect sang 1 trang web trên trình duyệt, đăng nhập bằng tài khoản Google đã được thêm vào Google Cloud Project
-
-#### **Bước 2: Chọn Project ID**
-
-```
-gcloud config set project nt548-project
-```
-
-#### **Bước 3: Kiểm tra lại cấu hình hiện tại**
-
-```
-gcloud config get-value project
-```
-
-- Đảm bảo tên project là `nt548-project`
-
-#### **Bước 4: Triển khai hạ tầng bằng Terraform**
-
-- Các lệnh triển khai đều ở trong file `setup.sh` của Repo 
-- Để triển khai Terraform, hãy chạy script `setup.sh` bằng WSL2 trên Window hoặc máy ảo Ubuntu (Cách 1)
-- Nếu không có môi trường Linux như WSL2, Ubuntu hoặc muốn chạy từng lệnh thủ công thì có thể xem Cách 2.
-
-**Cách 1:** Chạy script trên WSL2 hoặc Ubuntu
-
-- *Xem nội dung file `setup.sh` tại [đây](./setup.sh)*
-
-```
-# CD vào thư mục gốc chứa file setup.sh
-cd devsecops-project/
-
-# Cấp quyền để chạy script
-chmod +x ./setup.sh
-
-# Chạy script
-./setup.sh
-```
-
-**Cách 2:** Chạy từng lệnh thủ công được liệt kê trong file NOTE.md
-
-- *Xem nội dung file `NOTE.md` tại [đây](./NOTE.md)*
-
-#### **Bước 5: Truy cập và sử dụng Tool thông qua URL**
-
-Toàn bộ URL của các dịch vụ (Jenkins, SonarQube, ArgoCD, Grafana...) đã được tổng hợp trong file NOTE.md.
-
-- *Xem nội dung file `NOTE.md` tại [đây](./NOTE.md)*
-
-### Một số lưu ý
-
-- không dùng `terraform workspace` để tạo nhiều môi trường, chỉ dùng 1 môi trường duy nhất.
-- Các lệnh triển khai sẽ được cập nhập thường xuyên.
 
 ---
 

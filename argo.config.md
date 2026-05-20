@@ -1,22 +1,3 @@
-# Kết nối GKE cluster
-
-gcloud container clusters get-credentials devsecops-gke --zone us-central1-a --project nt548-project
-
-# Add Helm Repo ArgoCD
-
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
-
-# Deploy ArgoCD bằng Helm
-
-cd helm-chart/argocd
-helm upgrade --install argocd argo/argo-cd -n argocd -f values.yaml --wait --timeout 15m
-
-# Deploy Argo Rollouts bằng Helm
-
-cd ../argo-rollouts
-helm upgrade --install argo-rollouts argo/argo-rollouts -n argo-rollouts -f values.yaml --wait --timeout 10m
-
 # Cài kubectl argo rollouts plugin
 
 curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
