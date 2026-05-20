@@ -85,7 +85,7 @@ resource "google_container_cluster" "primary" {
 
 # =============================================================================
 # NODE POOL: platform-pool
-# 2 nodes e2-standard-2, taint/label pool=platform
+# 2 nodes e2-standard-2, label pool=platform, no active taint
 # CPU: 2 × 2 vCPU = 4 CPUs
 # =============================================================================
 
@@ -124,7 +124,7 @@ resource "google_container_node_pool" "platform_pool" {
 
 # =============================================================================
 # NODE POOL: observation-pool
-# 2 nodes e2-standard-2, taint/label pool=observation
+# 2 nodes e2-standard-2, label pool=observation, no active taint
 # CPU: 2 × 2 vCPU = 4 CPUs
 # =============================================================================
 

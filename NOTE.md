@@ -13,6 +13,8 @@ helm repo add harbor https://helm.goharbor.io
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
 
 # Init Terraform
@@ -41,24 +43,39 @@ helm upgrade --install harbor harbor/harbor --namespace harbor --values ./values
 # Observation Deploy
 cd ../observation
 
+# Deploy kube-prometheus-stack (Prometheus, Alertmanager, Grafana, kube-state-metrics, node-exporter)
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace --version 85.2.0 --values ./prometheus-stack/values.yaml --wait --timeout 15m
+kubectl apply -f ./prometheus-stack/rules/nt548-alerts.yaml
+kubectl apply -f ./prometheus-stack/monitors/
+kubectl apply -f ./prometheus-stack/dashboards/scenario2-keda-dashboard-configmap.yaml
+
 # Deploy Loki bằng Helm 
-helm upgrade --install loki grafana/loki -n logging --values ./loki/values.yaml --wait --timeout 10m
+helm upgrade --install loki grafana/loki -n logging --create-namespace --version 7.0.0 --values ./loki/values.yaml --wait --timeout 10m
 
 # Deploy Jaeger bằng Helm 
-helm upgrade --install jaeger jaegertracing/jaeger -n tracing --values ./jaeger/values.yaml --wait --timeout 10m
+helm upgrade --install jaeger jaegertracing/jaeger -n tracing --create-namespace --version 4.8.0 --values ./jaeger/values.yaml --wait --timeout 10m
 
-# Deploy Grafana bằng Helm
-helm upgrade --install grafana grafana/grafana -n monitoring --values ./grafana/values.yaml --wait --timeout 10m
+# Deploy Promtail for app container logs. Grafana is installed by kube-prometheus-stack above.
+helm upgrade --install promtail grafana/promtail -n logging --version 6.17.1 --values ./promtail/values.yaml --wait --timeout 10m
+
+# Standalone Grafana is deprecated. Grafana is installed by kube-prometheus-stack.
 
 # Deploy Otel Collector bằng Helm 
-helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector -n monitoring --values ./otel-gateway/values.yaml --wait --timeout 10m
+helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector -n monitoring --version 0.156.0 --values ./otel-gateway/values.yaml --wait --timeout 10m
 
 # Deploy Otel Agent bằng Helm 
-helm upgrade --install otel-agent open-telemetry/opentelemetry-collector -n monitoring --values ./otel-agent/values.yaml --wait --timeout 10m
+helm upgrade --install otel-agent open-telemetry/opentelemetry-collector -n monitoring --version 0.156.0 --values ./otel-agent/values.yaml --wait --timeout 10m
 
 # Apply Ingress để forward route tới các service thông qua DNS
 cd ../ingress-nginx
+# Refresh the existing Terraform-installed ingress-nginx release so metrics are enabled.
+helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n app --reuse-values --values ./values.yaml --wait --timeout 10m
 kubectl apply -f ./ingress.yaml
+
+# KEDA Scenario 2: install KEDA, then apply the frontend ScaledObject after the app is deployed
+cd ../keda
+helm upgrade --install keda kedacore/keda -n keda --create-namespace --version 2.19.0 --values ./values.yaml --wait --timeout 10m
+kubectl apply -f ./scaledobjects/frontend-rps-scaledobject.yaml
 ```
 
 ---

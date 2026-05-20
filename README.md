@@ -57,7 +57,10 @@ devsecops-project/
 │   └── pod-templates/
 ├── demo-scripts/
 │   ├── scenario1-checklist.md
-│   ├── scenario2-load-test.js
+│   ├── scenario2-k6.js
+│   ├── scenario2-watch.sh
+│   ├── scenario2-checklist.md
+│   ├── scenario2-expected-results.md
 │   └── scenario3-security-sim.sh
 ├── README.md
 ├── .gitignore

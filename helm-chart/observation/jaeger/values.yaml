@@ -1,5 +1,6 @@
-storage:
-  type: memory
+# jaegertracing/jaeger chart version used by the runbook: 4.8.0
+# Jaeger v2 all-in-one defaults to ephemeral in-memory storage when no
+# userconfig storage backend is supplied. This is intentional for the lab demo.
 
 jaeger:
   enabled: true
@@ -15,3 +16,10 @@ jaeger:
                 operator: In
                 values:
                   - observation
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi

@@ -935,11 +935,13 @@ controller:
     port: 10254
     portName: metrics
     # if this port is changed, change healthz-port: in extraArgs: accordingly
-    enabled: false
+    enabled: true
     service:
       # -- Enable the metrics service or not.
       enabled: true
-      annotations: {}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "10254"
       # prometheus.io/scrape: "true"
       # prometheus.io/port: "10254"
       # -- Labels to be added to the metrics service resource
@@ -957,6 +959,9 @@ controller:
       # externalTrafficPolicy: ""
       # nodePort: ""
     serviceMonitor:
+      # Keep this false because this chart is installed by Terraform before the
+      # Prometheus Operator CRDs exist. Apply the standalone ServiceMonitor in
+      # helm-chart/observation/prometheus-stack/monitors after the stack is up.
       enabled: false
       additionalLabels: {}
       # -- Annotations to be added to the ServiceMonitor.

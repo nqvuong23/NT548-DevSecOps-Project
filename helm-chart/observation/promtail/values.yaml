@@ -1,0 +1,51 @@
+# grafana/promtail chart version used by the runbook: 6.17.1
+
+fullnameOverride: promtail
+
+config:
+  clients:
+    - url: http://loki-gateway.logging.svc.cluster.local/loki/api/v1/push
+  snippets:
+    pipelineStages:
+      - cri: {}
+    extraRelabelConfigs:
+      - action: keep
+        source_labels:
+          - __meta_kubernetes_namespace
+        regex: app
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  namespaceSelector:
+    matchNames:
+      - logging
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: nt548-observability
+  interval: 30s
+  scrapeTimeout: 10s
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: pool
+              operator: In
+              values:
+                - app
+
+tolerations:
+  - key: pool
+    operator: Equal
+    value: app
+    effect: NoSchedule
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

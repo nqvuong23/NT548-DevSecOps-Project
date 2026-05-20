@@ -1,9 +1,12 @@
-# Mẫu thiết kế phân tách workload trên GKE
-# Pool 1: platform-pool (Label: pool=platform | Taint: pool=platform:NoSchedule)
-# Pool 2: observation-pool (Label: pool=observation | Taint: pool=observation:NoSchedule)
-# Pool 3: app-pool   (Label: pool=app | Taint: pool=app:NoSchedule)
+# Scheduling reference for the current GKE node pools.
+# platform-pool:    label pool=platform, no active taint
+# observation-pool: label pool=observation, no active taint
+# app-pool:         label pool=app, taint pool=app:NoSchedule
+#
+# Do not add platform/observation tolerations unless Terraform is changed to
+# taint those pools. The app pool is currently the only tainted pool.
 
-# 1. Dành cho các Tools CI/CD (Jenkins, Sonar, ...)
+# 1. Platform tools (Jenkins, SonarQube, Argo CD, KEDA, ...)
 affinity:
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
@@ -13,40 +16,28 @@ affinity:
           operator: In
           values:
           - platform
-tolerations:
-- key: "pool"
-  operator: "Equal"
-  value: "platform"
-  effect: "NoSchedule"
 
 ---
 
-# 2. Dành cho các Observation Tool (Prometheus, Grafana, Loki, ...)
+# 2. Observation tools (Prometheus, Grafana, Loki, Jaeger, OTel Gateway, ...)
 affinity:
   nodeAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 100
-      preference:
-        matchExpressions:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
         - key: pool
           operator: In
           values:
           - observation
-tolerations:
-- key: "pool"
-  operator: "Equal"
-  value: "observation"
-  effect: "NoSchedule"
 
 ---
 
-# 3. Dành cho Microservices (App)
+# 3. Online Boutique application workloads
 affinity:
   nodeAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 100
-      preference:
-        matchExpressions:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
         - key: pool
           operator: In
           values:
