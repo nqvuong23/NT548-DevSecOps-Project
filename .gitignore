@@ -48,6 +48,8 @@ gcp-credentials.json
 service-account*.json
 application-credentials.json
 
+cluster-keys.json
+
 # Các file .env chứa secret (giữ lại .env.example làm template)
 .env
 .env.*
