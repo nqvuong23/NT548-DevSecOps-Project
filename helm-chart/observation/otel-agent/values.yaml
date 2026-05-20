@@ -9,7 +9,9 @@ command:
 
 presets:
   logsCollection:
-    enabled: true
+    # Promtail is the primary container stdout log shipper for README compliance.
+    # Keep this false to avoid duplicate Loki ingestion.
+    enabled: false
     includeCollectorLogs: false
   hostMetrics:
     enabled: true

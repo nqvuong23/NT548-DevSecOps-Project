@@ -1,4 +1,6 @@
 replicas: 1
+adminUser: admin
+adminPassword: admin
 
 service:
   type: ClusterIP
@@ -23,6 +25,13 @@ datasources:
   datasources.yaml:
     apiVersion: 1
     datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+        editable: true
       - name: Loki
         uid: loki
         type: loki

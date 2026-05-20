@@ -1,0 +1,43 @@
+# kedacore/keda chart version used by the runbook: 2.19.0
+
+affinity: &platformAffinity
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: pool
+              operator: In
+              values:
+                - platform
+
+operator:
+  affinity: *platformAffinity
+
+metricsServer:
+  affinity: *platformAffinity
+
+webhooks:
+  affinity: *platformAffinity
+
+prometheus:
+  operator:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus-stack
+        app.kubernetes.io/part-of: nt548-autoscaling
+  metricServer:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus-stack
+        app.kubernetes.io/part-of: nt548-autoscaling
+  webhooks:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus-stack
+        app.kubernetes.io/part-of: nt548-autoscaling

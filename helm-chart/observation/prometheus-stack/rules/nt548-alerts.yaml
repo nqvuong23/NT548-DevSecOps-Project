@@ -1,0 +1,64 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nt548-scenario2-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: nt548-observability
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: nt548.scenario2
+      rules:
+        - alert: HighRequestRate
+          expr: sum(rate(nginx_ingress_controller_requests{namespace="app", ingress="app"}[1m])) > 20
+          for: 2m
+          labels:
+            severity: warning
+            scenario: keda-scenario-2
+          annotations:
+            summary: High request rate on Online Boutique ingress
+            description: "Ingress {{ $labels.ingress }} in namespace app is above 20 requests/second for more than 2 minutes."
+
+        - alert: HighFrontendCPU
+          expr: |
+            (
+              sum by (pod) (
+                rate(container_cpu_usage_seconds_total{
+                  namespace="app",
+                  pod=~"frontend-.*",
+                  container!="POD",
+                  image!=""
+                }[2m])
+              )
+              /
+              sum by (pod) (
+                kube_pod_container_resource_requests{
+                  namespace="app",
+                  pod=~"frontend-.*",
+                  resource="cpu"
+                }
+              )
+            ) > 0.8
+          for: 3m
+          labels:
+            severity: warning
+            scenario: keda-scenario-2
+          annotations:
+            summary: Frontend CPU request saturation is high
+            description: "Frontend pod {{ $labels.pod }} is using more than 80% of its requested CPU."
+
+        - alert: PodOOMKilled
+          expr: |
+            sum by (namespace, pod, container) (
+              increase(kube_pod_container_status_restarts_total{namespace="app"}[5m])
+            ) > 0
+            and on (namespace, pod, container)
+            kube_pod_container_status_last_terminated_reason{namespace="app", reason="OOMKilled"} == 1
+          for: 1m
+          labels:
+            severity: critical
+            scenario: keda-scenario-2
+          annotations:
+            summary: App pod restarted after OOMKilled
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} was OOMKilled."

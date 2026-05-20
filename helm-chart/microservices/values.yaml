@@ -44,6 +44,8 @@ authorizationPolicies:
 opentelemetryCollector:
   # Inject COLLECTOR_SERVICE_ADDR for services that read it from source code.
   enabled: true
+  # Legacy in-chart collector Deployment. Keep disabled in favor of the
+  # observation/otel-agent and observation/otel-gateway collector topology.
   create: false
   name: opentelemetrycollector
   endpoint: "$(NODE_IP):4317"
