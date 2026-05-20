@@ -135,7 +135,6 @@ spec:
         // STAGE 2: Secret Scanning (Gitleaks) - Task 2.2
         // =====================================================================
         stage('Secret Scanning - Gitleaks') {
-            when { changeset "app_src/**" }
             steps {
                 container('gitleaks') {
                     script {
@@ -164,7 +163,6 @@ spec:
         // STAGE 3: SAST - SonarQube Analysis - Task 2.3
         // =====================================================================
         stage('SAST - SonarQube') {
-            when { changeset "app_src/**" }
             steps {
                 container('sonar-scanner') {
                     script {
@@ -181,7 +179,6 @@ spec:
         // STAGE 4: Quality Gate Check - Task 2.3
         // =====================================================================
         stage('Quality Gate Check') {
-            when { changeset "app_src/**" }
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
                     script {
@@ -200,7 +197,6 @@ spec:
         // STAGE 5: IaC Scan - Checkov - Task 2.3
         // =====================================================================
         stage('IaC Scan - Checkov') {
-            when { changeset "terraform/**" }
             steps {
                 container('checkov') {
                     script {
@@ -230,7 +226,6 @@ spec:
         // STAGE 6: SCA - Trivy Dependency Scan - Task 2.3
         // =====================================================================
         stage('SCA - Trivy Dependency Scan') {
-            when { changeset "app_src/**" }
             steps {
                 container('trivy') {
                     script {
@@ -258,7 +253,6 @@ spec:
         // Build tất cả microservice có Dockerfile thay đổi
         // =====================================================================
         stage('Build Docker Images') {
-            when { changeset "app_src/**" }
             steps {
                 container('docker') {
                     script {
@@ -319,7 +313,6 @@ spec:
         // Quét image vừa build thay vì alpine:3.18
         // =====================================================================
         stage('Image Scan - Trivy') {
-            when { changeset "app_src/**" }
             steps {
                 container('trivy') {
                     script {
@@ -376,7 +369,6 @@ spec:
         // Docker login bằng Harbor Robot Account credential từ Jenkins
         // =====================================================================
         stage('Push to Harbor') {
-            when { changeset "app_src/**" }
             steps {
                 container('docker') {
                     script {
@@ -427,12 +419,7 @@ spec:
         // rồi commit/push lên Git repo để ArgoCD nhận diện
         // =====================================================================
         stage('Update Helm Values - GitOps') {
-            when {
-                allOf {
-                    changeset "app_src/**"
-                    branch 'main'
-                }
-            }
+            when { branch 'main' }
             steps {
                 container('tools') {
                     script {
@@ -483,12 +470,7 @@ spec:
         // Gọi ArgoCD CLI để sync app, không chờ auto-sync
         // =====================================================================
         stage('Trigger ArgoCD Sync') {
-            when {
-                allOf {
-                    changeset "app_src/**"
-                    branch 'main'
-                }
-            }
+            when { branch 'main' }
             steps {
                 container('tools') {
                     script {
