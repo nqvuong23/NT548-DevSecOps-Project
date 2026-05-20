@@ -295,8 +295,6 @@ spec:
                                           -f ${dockerfilePath} \
                                           ./app_src/${svc}
                                     """
-                                    // Lưu tên image để dùng ở stage scan và push
-                                    env["IMAGE_${svc.toUpperCase().replace('-','_')}"] = imageFull
                                 } else {
                                     echo ">>> Bỏ qua ${svc}: không tìm thấy Dockerfile tại ${dockerfilePath}"
                                 }
