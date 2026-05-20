@@ -36,13 +36,6 @@ helm upgrade --install sonarqube-release sonarqube/sonarqube --namespace sonarqu
 
 # Deploy Harbor bằng Helm 
 cd ../harbor
-kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
-HARBOR_ADMIN_PASSWORD="$(openssl rand -base64 24)"
-HARBOR_SECRET_KEY="$(openssl rand -hex 8)"
-HARBOR_DB_PASSWORD="$(openssl rand -base64 24)"
-kubectl create secret generic harbor-admin-password -n harbor --from-literal=HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD}" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic harbor-secret-key -n harbor --from-literal=secretKey="${HARBOR_SECRET_KEY}" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic harbor-database -n harbor --from-literal=POSTGRES_PASSWORD="${HARBOR_DB_PASSWORD}" --dry-run=client -o yaml | kubectl apply -f -
 helm upgrade --install harbor harbor/harbor --namespace harbor --values ./values.yaml --wait --timeout 10m
 
 # Observation Deploy
