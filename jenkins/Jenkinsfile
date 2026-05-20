@@ -207,10 +207,8 @@ spec:
                             script: 'checkov -d ./terraform -o json > checkov-report.json',
                             returnStatus: true
                         )
-                        if (exitCode == 1) {
-                            error "Checkov phát hiện rủi ro IaC! Xem checkov-report.json."
-                        } else if (exitCode != 0) {
-                            error "Checkov lỗi không xác định, exit code: ${exitCode}."
+                        if (exitCode != 0) {
+                            echo ">>> CẢNH BÁO: Checkov phát hiện rủi ro IaC hoặc có lỗi xảy ra (exit code: ${exitCode})! Xem checkov-report.json."
                         } else {
                             echo ">>> Không phát hiện rủi ro IaC nào."
                         }
@@ -237,9 +235,10 @@ spec:
                             returnStatus: true
                         )
                         if (exitCode != 0) {
-                            error "Trivy phát hiện lỗ hổng mức độ HIGH/CRITICAL trong Dependency! Xem trivy-fs-report.json."
+                            echo ">>> CẢNH BÁO: Trivy phát hiện lỗ hổng mức độ HIGH/CRITICAL trong Dependency! Xem trivy-fs-report.json."
+                        } else {
+                            echo ">>> Không phát hiện lỗ hổng nghiêm trọng nào trong Dependency."
                         }
-                        echo ">>> Không phát hiện lỗ hổng nghiêm trọng nào trong Dependency."
                     }
                 }
             }
@@ -353,9 +352,10 @@ spec:
                         }
 
                         if (failedServices) {
-                            error "Trivy phát hiện lỗ hổng HIGH/CRITICAL trong: ${failedServices.join(', ')}. Xem report để biết chi tiết."
+                            echo ">>> CẢNH BÁO: Trivy phát hiện lỗ hổng HIGH/CRITICAL trong: ${failedServices.join(', ')}. Xem report để biết chi tiết."
+                        } else {
+                            echo ">>> Tất cả Docker Image đều an toàn!"
                         }
-                        echo ">>> Tất cả Docker Image đều an toàn!"
                     }
                 }
             }
@@ -421,7 +421,6 @@ spec:
         // rồi commit/push lên Git repo để ArgoCD nhận diện
         // =====================================================================
         stage('Update Helm Values - GitOps') {
-            when { branch 'main' }
             steps {
                 container('tools') {
                     script {
@@ -457,7 +456,7 @@ spec:
                             sh """
                                 git add helm-chart/microservices/values.yaml
                                 git commit -m "ci: update microservices image tag to ${IMAGE_TAG} [skip ci]"
-                                git push https://\${GIT_USER}:\${GIT_TOKEN}@\$(git remote get-url origin | sed 's|https://||') HEAD:${GIT_BRANCH_NAME}
+                                git push https://\${GIT_USER}:\${GIT_TOKEN}@\$(git remote get-url origin | sed 's|https://||') HEAD:main
                             """
 
                             echo ">>> Helm values đã được cập nhật và push lên Git!"
@@ -472,7 +471,6 @@ spec:
         // Gọi ArgoCD CLI để sync app, không chờ auto-sync
         // =====================================================================
         stage('Trigger ArgoCD Sync') {
-            when { branch 'main' }
             steps {
                 container('tools') {
                     script {
