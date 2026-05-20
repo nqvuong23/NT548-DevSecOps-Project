@@ -141,7 +141,7 @@ spec:
                     script {
                         echo ">>> Đang bắt đầu quét Secret bằng Gitleaks..."
                         def exitCode = sh(
-                            script: 'gitleaks detect --source ./app_src --config .gitleaks.toml --verbose --report-format json --report-path gitleaks-report.json',
+                            script: 'gitleaks detect --no-git --source ./app_src --config .gitleaks.toml --verbose --report-format json --report-path gitleaks-report.json',
                             returnStatus: true
                         )
                         if (exitCode == 1) {
