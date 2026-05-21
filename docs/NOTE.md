@@ -78,8 +78,12 @@ gcloud container clusters get-credentials devsecops-gke --zone us-central1-a --p
 ```
 
 ```
+# Deploy Cert Manager bằng Helm
+cd ../helm-chart/cert-manager
+helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager --namespace security --values ./values.yaml --wait --timeout 10m
+
 # Deploy Jenkins bằng Helm
-cd ../helm-chart/jenkins
+cd ../jenkins
 kubectl apply -f ./rbac.yaml
 helm upgrade --install jenkins-release jenkins/jenkins --namespace jenkins --values ./values.yaml --wait --timeout 10m
 
@@ -138,10 +142,12 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n app --values
 ```
 
 ```
+# Apply Cluster Issuer 
+cd ../cert-manager
+kubectl apply -f ./cluster_issuer.yaml
+
 # Apply Ingress để forward route tới các service thông qua DNS
 cd ../ingress-nginx
-# Refresh the existing Terraform-installed ingress-nginx release so metrics are enabled.
-helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n app --reuse-values --values ./values.yaml --wait --timeout 10m
 kubectl apply -f ./ingress.yaml
 ```
 
@@ -161,13 +167,12 @@ terraform destroy -target=module.iam -target=module.networking -target=module.gk
 
 ## Danh sách các URL truy cập vào các tool
 
-- Microservice Web URL : http://app.vuongdevops.io.vn 
-- Jenkins URL          : http://jenkins.vuongdevops.io.vn 
-- Sonarqueue URL       : http://sonarqube.vuongdevops.io.vn 
-- Argocd URL           : http://argocd.vuongdevops.io.vn 
-- Harbor URL           : http://harbor.vuongdevops.io.vn 
-- Grafana URL          : http://grafana.vuongdevops.io.vn 
-- DefectDojo URL       : http://defectdojo.vuongdevops.io.vn 
-- Hashicorp Vault URL  : http://vault.vuongdevops.io.vn 
-- Jaeger URL           : http://jaeger.vuongdevops.io.vn 
+- Microservice Web URL : https://app.vuongdevops.io.vn 
+- Jenkins URL          : https://jenkins.vuongdevops.io.vn 
+- Sonarqueue URL       : https://sonarqube.vuongdevops.io.vn 
+- Argocd URL           : https://argocd.vuongdevops.io.vn 
+- Harbor URL           : https://harbor.vuongdevops.io.vn 
+- Grafana URL          : https://grafana.vuongdevops.io.vn 
+- Hashicorp Vault URL  : https://vault.vuongdevops.io.vn 
+- Jaeger URL           : https://jaeger.vuongdevops.io.vn 
 

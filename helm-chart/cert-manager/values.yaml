@@ -97,7 +97,7 @@ installCRDs: true
 crds:
   # This option decides if the CRDs should be installed
   # as part of the Helm installation.
-  enabled: false
+  enabled: true
 
   # This option makes it so that the "helm.sh/resource-policy": keep
   # annotation is added to the CRD. This will prevent Helm from uninstalling
@@ -587,7 +587,7 @@ affinity:
         - key: pool
           operator: In
           values:
-          - app
+          - platform
 
 # A list of Kubernetes Tolerations, if required. For more information, see [Toleration v1 core](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#toleration-v1-core).
 #
@@ -597,11 +597,6 @@ affinity:
 #     operator: Equal
 #     value: master
 #     effect: NoSchedule
-tolerations: 
-- key: "pool"
-  operator: "Equal"
-  value: "app"
-  effect: "NoSchedule"
 
 # A list of Kubernetes TopologySpreadConstraints, if required. For more information, see [Topology spread constraint v1 core](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#topologyspreadconstraint-v1-core
 #
@@ -993,7 +988,7 @@ webhook:
           - key: pool
             operator: In
             values:
-            - app
+            - platform
 
   # A list of Kubernetes Tolerations, if required. For more information, see [Toleration v1 core](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#toleration-v1-core).
   #
@@ -1003,11 +998,6 @@ webhook:
   #     operator: Equal
   #     value: master
   #     effect: NoSchedule
-  tolerations: 
-  - key: "pool"
-    operator: "Equal"
-    value: "app"
-    effect: "NoSchedule"
 
   # A list of Kubernetes TopologySpreadConstraints, if required. For more information, see [Topology spread constraint v1 core](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#topologyspreadconstraint-v1-core).
   #
@@ -1390,7 +1380,7 @@ cainjector:
           - key: pool
             operator: In
             values:
-            - app
+            - platform
 
   # A list of Kubernetes Tolerations, if required. For more information, see [Toleration v1 core](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#toleration-v1-core).
   #
@@ -1400,11 +1390,6 @@ cainjector:
   #     operator: Equal
   #     value: master
   #     effect: NoSchedule
-  tolerations: 
-  - key: "pool"
-    operator: "Equal"
-    value: "app"
-    effect: "NoSchedule"
 
   # A list of Kubernetes TopologySpreadConstraints, if required. For more information, see [Topology spread constraint v1 core](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#topologyspreadconstraint-v1-core).
   #
@@ -1645,7 +1630,7 @@ startupapicheck:
           - key: pool
             operator: In
             values:
-            - app
+            - platform
 
   # A list of Kubernetes Tolerations, if required. For more information, see [Toleration v1 core](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#toleration-v1-core).
   #
@@ -1655,11 +1640,6 @@ startupapicheck:
   #     operator: Equal
   #     value: master
   #     effect: NoSchedule
-  tolerations: 
-  - key: "pool"
-    operator: "Equal"
-    value: "app"
-    effect: "NoSchedule"
 
   # Optional additional labels to add to the startupapicheck Pods.
   podLabels: {}
