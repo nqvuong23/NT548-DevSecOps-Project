@@ -51,9 +51,6 @@ devsecops-project/
 │   │   └── rbac.yaml
 │   ├── node_affinity_toleration_templates.yaml
 │   └── ...
-├── jenkins/
-│   ├── Jenkinsfile
-│   └── pod-templates/
 ├── demo-scripts/
 │   ├── scenario1-checklist.md
 │   ├── scenario2-k6.js
@@ -66,6 +63,7 @@ devsecops-project/
 ├── NOTE.md
 ├── setup.sh
 ├── .gitleaks.toml
+└── Jenkinsfile
 └── sonar-project.properties
 ```
 

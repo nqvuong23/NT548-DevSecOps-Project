@@ -30,7 +30,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
    - SCM: Chọn `Git`.
    - Repository URL: Dán link GitHub repo của nhóm vào.
    - Branch Specifier: `*/main`.
-   - Script Path: Nhập `jenkins/Jenkinsfile`.
+   - Script Path: Nhập `Jenkinsfile`.
 5. Tích vào ô **GitHub hook trigger for GITScm polling** ở mục Build Triggers.
 6. Bấm **Save**.
 
