@@ -489,13 +489,15 @@ spec:
                             sh """
                                 argocd app set ${ARGOCD_APP_NAME} \
                                   --helm-set images.tag=${IMAGE_TAG} \
-                                  --insecure
+                                  --grpc-web \
+                                  --plaintext
                             """
 
                             // Trigger sync
                             sh """
                                 argocd app sync ${ARGOCD_APP_NAME} \
-                                  --insecure \
+                                  --grpc-web \
+                                  --plaintext \
                                   --timeout 300
                             """
 
@@ -503,7 +505,8 @@ spec:
                             sh """
                                 argocd app wait ${ARGOCD_APP_NAME} \
                                   --health \
-                                  --insecure \
+                                  --grpc-web \
+                                  --plaintext \
                                   --timeout 300
                             """
 
