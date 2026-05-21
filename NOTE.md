@@ -140,6 +140,8 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n app --values
 ```
 # Apply Ingress để forward route tới các service thông qua DNS
 cd ../ingress-nginx
+# Refresh the existing Terraform-installed ingress-nginx release so metrics are enabled.
+helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n app --reuse-values --values ./values.yaml --wait --timeout 10m
 kubectl apply -f ./ingress.yaml
 ```
 
