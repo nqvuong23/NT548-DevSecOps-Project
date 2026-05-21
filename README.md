@@ -51,9 +51,6 @@ devsecops-project/
 │   │   └── rbac.yaml
 │   ├── node_affinity_toleration_templates.yaml
 │   └── ...
-├── jenkins/
-│   ├── Jenkinsfile
-│   └── pod-templates/
 ├── demo-scripts/
 │   ├── scenario1-checklist.md
 │   ├── scenario2-k6.js
@@ -66,6 +63,7 @@ devsecops-project/
 ├── NOTE.md
 ├── setup.sh
 ├── .gitleaks.toml
+└── Jenkinsfile
 └── sonar-project.properties
 ```
 
@@ -73,7 +71,7 @@ devsecops-project/
 
 ## Architecture of DevSecOps Pipeline
 
-![Hình 1. DevSecOps Pipeline](./pipeline_v2.png)
+![Hình 1. DevSecOps Pipeline](./pipeline_v3.png)
 
 ---
 
@@ -292,18 +290,6 @@ echo "Điền tên bucket này vào providers.tf: $BUCKET_NAME"
 
 Các lệnh trên đã được chạy và tạo thành công GCS Bucket!
 
-#### Bổ sung thông tin về các Workspace đã được tạo
-Đã thực hiện tạo 3 Workspace là dev, staging và prod. 
-
-Dùng câu lệnh bên dưới để kiểm tra danh sách các workspace đang có: 
-```bash
-terraform workspace list
-```
-Dùng câu lệnh bên dưới để chọn workspace làm việc:
-```bash
-terraform workspace select <ten_workspace>
-```
-
 ---
 
 ### TASK 1.2 – Terraform Module: GKE Cluster & Node Pools
@@ -412,24 +398,6 @@ Gitleaks, `.gitleaks.toml`, secret scanning report, SonarQube Helm chart, sonar-
 - SonarQube UI truy cập được, project được tạo và scan thành công
 - Stage Gitleaks trong Jenkinsfile: chạy được, fail khi có secret hardcode test, pass khi clean
 - Stage SonarQube: report hiện trên SonarQube dashboard, Quality Gate trả kết quả về Jenkins
-
----
-
-**📌 Hướng dẫn truy cập UI SonarQube (Dành cho thành viên nhóm)**
-
-Do ở giai đoạn này SonarQube đang chạy bảo mật bên trong mạng nội bộ của K8s (chưa public Ingress), các thành viên cần dùng lệnh `port-forward` để truy cập:
-
-**Bước 1:** Đảm bảo máy cá nhân đã dùng lệnh `gcloud` để kết nối tới đúng Cluster của đồ án.
-
-**Bước 2:** Mở Terminal/CMD và chạy lệnh sau để mở đường hầm:
-```bash
-kubectl port-forward svc/sonarqube-release-sonarqube 9000:9000 -n sonarqube
-```
-(Lưu ý: Giữ nguyên cửa sổ Terminal này trong suốt quá trình xem)
-
-**Bước 3:** Mở trình duyệt web và truy cập: http://localhost:9000
-
-**Bước 4:** Đăng nhập với thông tin Username và Password được cung cấp
 
 ---
 
