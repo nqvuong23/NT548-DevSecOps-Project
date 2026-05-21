@@ -534,13 +534,8 @@ spec:
                                 )
                             """
 
-                            // Login ArgoCD bằng token
-                            sh """
-                                argocd login ${ARGOCD_SERVER} \
-                                  --auth-token \$ARGOCD_AUTH_TOKEN \
-                                  --grpc-web \
-                                  --insecure
-                            """
+                            // ArgoCD CLI tự động lấy ARGOCD_SERVER và ARGOCD_AUTH_TOKEN từ environment
+
 
                             // Trigger sync
                             sh """
