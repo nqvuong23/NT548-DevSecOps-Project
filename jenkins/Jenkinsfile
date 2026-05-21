@@ -540,7 +540,6 @@ spec:
                             // Trigger sync
                             sh """
                                 argocd app sync ${ARGOCD_APP_NAME} \
-                                  --grpc-web \
                                   --insecure \
                                   --timeout 300
                             """
@@ -549,7 +548,6 @@ spec:
                             sh """
                                 argocd app wait ${ARGOCD_APP_NAME} \
                                   --health \
-                                  --grpc-web \
                                   --insecure \
                                   --timeout 300
                             """
