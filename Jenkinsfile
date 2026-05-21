@@ -128,7 +128,8 @@ spec:
                     // Lấy commit SHA sau khi checkout để đảm bảo chính xác
                     env.IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
                     env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG}"
+                    env.CHANGED_FILES = sh(script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
+                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES}"
                 }
             }
         }
@@ -261,9 +262,14 @@ spec:
                     script {
                         // Khởi động dockerd (Docker-in-Docker) cục bộ với --insecure-registry
                         sh """
-                            if ! docker info >/dev/null 2>&1; then
-                                echo ">>> Khởi động dockerd cục bộ..."
-                                dockerd --insecure-registry harbor.vuongdevops.io.vn >/tmp/dockerd.log 2>&1 &
+                            mkdir -p /etc/docker
+                            echo '{"insecure-registries": ["\${HARBOR_REGISTRY}", "\${HARBOR_REGISTRY}:443"]}' > /etc/docker/daemon.json
+                            if ! docker info >/dev/null 2>&1 || ! docker info | grep -q "\${HARBOR_REGISTRY}"; then
+                                echo ">>> Khởi động lại hoặc chạy mới dockerd với insecure-registry..."
+                                pkill dockerd || true
+                                pkill containerd || true
+                                sleep 2
+                                dockerd >/tmp/dockerd.log 2>&1 &
                                 
                                 # Chờ dockerd sẵn sàng
                                 for i in {1..30}; do
@@ -274,7 +280,7 @@ spec:
                             fi
                         """
 
-                        echo ">>> Đang build Docker Image với tag: ${IMAGE_TAG}..."
+                        echo ">>> Đang build Docker Image với tag: \${IMAGE_TAG}..."
 
                         // Danh sách các microservice cần build
                         def services = [
@@ -290,33 +296,27 @@ spec:
                             'shippingservice'
                         ]
 
-                        // Chỉ build các service có Dockerfile thay đổi trong commit
-                        def changedFiles = sh(
-                            script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""',
-                            returnStdout: true
-                        ).trim()
-
                         services.each { svc ->
-                            def dockerfilePath = "app_src/${svc}/Dockerfile"
+                            def dockerfilePath = "app_src/\${svc}/Dockerfile"
                             // Build nếu service này có thay đổi HOẶC lần đầu chạy
-                            if (changedFiles.contains("app_src/${svc}") || changedFiles.isEmpty()) {
-                                def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                                def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
+                            if (env.CHANGED_FILES.contains("app_src/\${svc}") || env.CHANGED_FILES.isEmpty()) {
+                                def imageFull = "\${HARBOR_REGISTRY}/\${HARBOR_PROJECT}/\${svc}:\${IMAGE_TAG}"
+                                def imageLatest = "\${HARBOR_REGISTRY}/\${HARBOR_PROJECT}/\${svc}:latest"
 
                                 if (fileExists(dockerfilePath)) {
-                                    echo ">>> Building: ${imageFull}"
+                                    echo ">>> Building: \${imageFull}"
                                     sh """
-                                        docker build \
-                                          -t ${imageFull} \
-                                          -t ${imageLatest} \
-                                          -f ${dockerfilePath} \
-                                          ./app_src/${svc}
+                                        docker build \\
+                                          -t \${imageFull} \\
+                                          -t \${imageLatest} \\
+                                          -f \${dockerfilePath} \\
+                                          ./app_src/\${svc}
                                     """
                                 } else {
-                                    echo ">>> Bỏ qua ${svc}: không tìm thấy Dockerfile tại ${dockerfilePath}"
+                                    echo ">>> Bỏ qua \${svc}: không tìm thấy Dockerfile tại \${dockerfilePath}"
                                 }
                             } else {
-                                echo ">>> Bỏ qua ${svc}: không có thay đổi"
+                                echo ">>> Bỏ qua \${svc}: không có thay đổi"
                             }
                         }
                     }
@@ -344,26 +344,30 @@ spec:
                         def failedServices = []
 
                         services.each { svc ->
-                            def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                            if (fileExists("app_src/${svc}/Dockerfile")) {
-                                echo ">>> Scanning image: ${imageFull}"
-                                def exitCode = sh(
-                                    script: """
-                                        trivy image \
-                                          --insecure \
-                                          --format json \
-                                          --output trivy-image-${svc}-report.json \
-                                          --exit-code 1 \
-                                          --severity HIGH,CRITICAL \
-                                          --ignore-unfixed \
-                                          ${imageFull}
-                                    """,
-                                    returnStatus: true
-                                )
-                                if (exitCode != 0) {
-                                    failedServices.add(svc)
-                                    echo ">>> CẢNH BÁO: ${svc} có lỗ hổng HIGH/CRITICAL!"
+                            if (env.CHANGED_FILES.contains("app_src/\${svc}") || env.CHANGED_FILES.isEmpty()) {
+                                def imageFull = "\${HARBOR_REGISTRY}/\${HARBOR_PROJECT}/\${svc}:\${IMAGE_TAG}"
+                                if (fileExists("app_src/\${svc}/Dockerfile")) {
+                                    echo ">>> Scanning image: \${imageFull}"
+                                    def exitCode = sh(
+                                        script: """
+                                            trivy image \\
+                                              --insecure \\
+                                              --format json \\
+                                              --output trivy-image-\${svc}-report.json \\
+                                              --exit-code 1 \\
+                                              --severity HIGH,CRITICAL \\
+                                              --ignore-unfixed \\
+                                              \${imageFull}
+                                        """,
+                                        returnStatus: true
+                                    )
+                                    if (exitCode != 0) {
+                                        failedServices.add(svc)
+                                        echo ">>> CẢNH BÁO: \${svc} có lỗ hổng HIGH/CRITICAL!"
+                                    }
                                 }
+                            } else {
+                                echo ">>> Bỏ qua quét Trivy cho \${svc}: không có thay đổi"
                             }
                         }
 
@@ -390,17 +394,37 @@ spec:
             steps {
                 container('docker') {
                     script {
-                        echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
+                        // Khởi động/kiểm tra dockerd cục bộ trước khi login/push
+                        sh """
+                            mkdir -p /etc/docker
+                            echo '{"insecure-registries": ["\${HARBOR_REGISTRY}", "\${HARBOR_REGISTRY}:443"]}' > /etc/docker/daemon.json
+                            if ! docker info >/dev/null 2>&1 || ! docker info | grep -q "\${HARBOR_REGISTRY}"; then
+                                echo ">>> Khởi động lại hoặc chạy mới dockerd với insecure-registry..."
+                                pkill dockerd || true
+                                pkill containerd || true
+                                sleep 2
+                                dockerd >/tmp/dockerd.log 2>&1 &
+                                
+                                # Chờ dockerd sẵn sàng
+                                for i in {1..30}; do
+                                    docker info >/dev/null 2>&1 && break
+                                    echo "Chờ dockerd khởi động..."
+                                    sleep 2
+                                done
+                            fi
+                        """
+
+                        echo ">>> Đang push Docker Image lên Harbor Registry: \${HARBOR_REGISTRY}..."
 
                         withCredentials([
                             usernamePassword(
-                                credentialsId: "${HARBOR_CREDS_ID}",
+                                credentialsId: "\${HARBOR_CREDS_ID}",
                                 usernameVariable: 'HARBOR_USER',
                                 passwordVariable: 'HARBOR_PASS'
                             )
                         ]) {
                             // Login vào Harbor
-                            sh 'echo "$HARBOR_PASS" | docker login $HARBOR_REGISTRY -u "$HARBOR_USER" --password-stdin'
+                            sh 'echo "\$HARBOR_PASS" | docker login \$HARBOR_REGISTRY -u "\$HARBOR_USER" --password-stdin'
 
                             def services = [
                                 'adservice', 'cartservice', 'checkoutservice',
@@ -410,22 +434,26 @@ spec:
                             ]
 
                             services.each { svc ->
-                                if (fileExists("app_src/${svc}/Dockerfile")) {
-                                    def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                                    def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
-                                    echo ">>> Pushing: ${imageFull}"
-                                    sh """
-                                        docker push ${imageFull}
-                                        docker push ${imageLatest}
-                                    """
+                                if (env.CHANGED_FILES.contains("app_src/\${svc}") || env.CHANGED_FILES.isEmpty()) {
+                                    if (fileExists("app_src/\${svc}/Dockerfile")) {
+                                        def imageFull   = "\${HARBOR_REGISTRY}/\${HARBOR_PROJECT}/\${svc}:\${IMAGE_TAG}"
+                                        def imageLatest = "\${HARBOR_REGISTRY}/\${HARBOR_PROJECT}/\${svc}:latest"
+                                        echo ">>> Pushing: \${imageFull}"
+                                        sh """
+                                            docker push \${imageFull}
+                                            docker push \${imageLatest}
+                                        """
+                                    }
+                                } else {
+                                    echo ">>> Bỏ qua push cho \${svc}: không có thay đổi"
                                 }
                             }
 
                             // Logout để bảo mật
-                            sh 'docker logout $HARBOR_REGISTRY'
+                            sh 'docker logout \$HARBOR_REGISTRY'
                         }
 
-                        echo ">>> Push thành công! Image tag: ${IMAGE_TAG}"
+                        echo ">>> Push thành công! Image tag: \${IMAGE_TAG}"
                     }
                 }
             }
