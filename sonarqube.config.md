@@ -2,13 +2,9 @@
 
 **Bước 1: Đăng nhập**
 
-Do SonarQube đang chạy bảo mật bên trong mạng nội bộ của K8s, cần tạo đường hầm (port-forward) để truy cập:
-1. Mở Terminal/CMD và chạy lệnh sau (lưu ý: giữ nguyên cửa sổ Terminal này trong suốt quá trình sử dụng):
-```bash
-kubectl port-forward svc/sonarqube-release-sonarqube 9000:9000 -n sonarqube
-```
-2. Mở trình duyệt web và truy cập: http://localhost:9000
-3. Đăng nhập bằng tài khoản mặc định (Username: admin, Password: admin).
+1. Truy cập URL: http://sonarqube.vuongdevops.io.vn/
+2. Đăng nhập bằng tài khoản mặc định (Username: admin, Password: admin).
+3. Sonarqube Web sẽ thông báo thay đổi mật khẩu, hãy nhập mật khẩu mới và share với thành viên trong nhóm biết.
 
 **Bước 2: Tạo Project**
 1. Chọn tab **Projects** trên thanh menu trên cùng.
