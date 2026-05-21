@@ -19,7 +19,7 @@
 images:
   repository: harbor.vuongdevops.io.vn/devsecops
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "f9763d5"
+  tag: "8b71ee2"
 serviceAccounts:
   # Specifies whether service accounts should be created.
   create: true
