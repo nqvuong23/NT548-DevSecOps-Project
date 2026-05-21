@@ -425,6 +425,7 @@ controller:
     - configuration-as-code:2074.va_57f83f7a_10b_
     - sonar:2.17.2        # SonarQube Scanner plugin
     - github:1.40.0       # GitHub Integration plugin
+    - hashicorp-vault-plugin
 
   # If set to false, Jenkins will download the minimum required version of all dependencies.
   # -- Download the minimum required version or latest version of all dependencies
