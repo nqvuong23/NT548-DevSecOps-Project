@@ -107,7 +107,7 @@ spec:
 
         // ArgoCD
         ARGOCD_SERVER      = "argocd.vuongdevops.io.vn"
-        ARGOCD_APP_NAME    = "microservices"
+        ARGOCD_APP_NAME    = "online-boutique"
         ARGOCD_CREDS_ID    = "argocd-token"
 
         // SonarQube
