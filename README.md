@@ -73,7 +73,7 @@ devsecops-project/
 
 ## Architecture of DevSecOps Pipeline
 
-![Hình 1. DevSecOps Pipeline](./pipeline_v2.png)
+![Hình 1. DevSecOps Pipeline](./pipeline_v3.png)
 
 ---
 
