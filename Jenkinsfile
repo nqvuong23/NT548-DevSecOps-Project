@@ -30,8 +30,9 @@ spec:
     effect: "NoSchedule"
 
   volumes:
-  # Shared emptyDir volume for nested dockerd socket
-  - name: docker-run
+  # Shared emptyDir volume để truyền Harbor docker config.json tới Kaniko
+  # Kaniko đọc credentials tại /kaniko/.docker/config.json
+  - name: kaniko-docker-config
     emptyDir: {}
 
   containers:
@@ -62,22 +63,19 @@ spec:
     image: aquasec/trivy:0.50.1
     command: [sleep]
     args: [infinity]
-    volumeMounts:
-    - name: docker-run
-      mountPath: /var/run
 
-  # Container Docker để Build & Push Image lên Harbor (Task 2.4)
-  - name: docker
-    image: docker:24.0.7-dind
+  # Container Kaniko để Build & Push Image lên Harbor (Task 2.4)
+  # Không cần privileged mode — đây là lý do dùng Kaniko thay Docker-in-Docker
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     command: [sleep]
     args: [infinity]
-    securityContext:
-      privileged: true
     volumeMounts:
-    - name: docker-run
-      mountPath: /var/run
+    - name: kaniko-docker-config
+      mountPath: /kaniko/.docker
 
   # Container kubectl + yq + argocd-cli để Update Helm & Trigger ArgoCD (Task 2.4)
+  # Cũng dùng để chuẩn bị Harbor docker config.json cho Kaniko
   - name: tools
     image: alpine/k8s:1.28.3
     command: [sleep]
@@ -85,6 +83,9 @@ spec:
     env:
     - name: HOME
       value: /root
+    volumeMounts:
+    - name: kaniko-docker-config
+      mountPath: /kaniko/.docker
 """
         }
     }
@@ -299,32 +300,68 @@ spec:
         }
 
         // =====================================================================
-        // STAGE 7: Build Docker Image - Task 2.4 [MỚI]
-        // Build tất cả microservice có Dockerfile thay đổi
+        // STAGE 7: Build & Push Docker Images via Kaniko - Task 2.4
+        //
+        // Kaniko là công cụ build image không cần Docker daemon và không cần
+        // privileged mode — phù hợp cho môi trường Kubernetes.
+        //
+        // Quy trình:
+        //   1. Lấy Harbor credentials từ Vault (trong container 'tools').
+        //   2. Ghi /kaniko/.docker/config.json vào shared emptyDir volume —
+        //      đây là best practice để truyền credentials cho Kaniko mà không
+        //      expose chúng trên command line hay biến môi trường.
+        //   3. Kaniko đọc config.json, build image từ Dockerfile và push
+        //      thẳng lên Harbor trong một lệnh duy nhất.
+        //
+        // Lưu ý: Stage 9 (Push) đã được hợp nhất vào đây vì Kaniko build
+        //        và push cùng lúc qua flag --destination.
         // =====================================================================
-        stage('Build Docker Images') {
+        stage('Build & Push Images via Kaniko') {
             steps {
-                container('docker') {
-                    script {
-                        // Lưu ý: container docker:dind dùng command: [sleep] nên entrypoint bị override,
-                        // dockerd KHÔNG tự khởi động — cần start thủ công ở đây.
-                        sh '''
-                            if ! docker info >/dev/null 2>&1; then
-                                echo ">>> Khởi động dockerd thủ công (entrypoint bị override bởi sleep)..."
-                                dockerd > /tmp/dockerd.log 2>&1 &
-                                echo ">>> Chờ dockerd sẵn sàng..."
-                                for i in $(seq 1 30); do
-                                    docker info >/dev/null 2>&1 && echo ">>> dockerd đã sẵn sàng." && break
-                                    echo "Chờ dockerd... ($i/30)"
-                                    sleep 2
-                                done
-                                docker info >/dev/null 2>&1 || { echo "ERROR: dockerd không start được! Log:"; cat /tmp/dockerd.log; exit 1; }
-                            else
-                                echo ">>> dockerd đã sẵn sàng."
-                            fi
-                        '''
+                // Bước 1: Lấy credentials từ Vault và ghi docker config.json
+                // vào shared volume để Kaniko có thể đọc khi xác thực với Harbor.
+                // Thực hiện trong container 'tools' (có shell đầy đủ).
+                container('tools') {
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10/harbor',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'HARBOR_USER', vaultKey: 'username'],
+                                [envVar: 'HARBOR_PASS', vaultKey: 'password']
+                            ]
+                        ]
+                    ]) {
+                        script {
+                            echo ">>> Chuẩn bị Harbor credentials cho Kaniko..."
 
-                        echo ">>> Đang build Docker Image với tag: ${IMAGE_TAG}..."
+                            // Tạo docker config.json dạng base64 auth token
+                            // Best practice: dùng printf thay echo để tránh newline,
+                            // ghi vào shared volume /kaniko/.docker/config.json
+                            sh '''
+                                mkdir -p /kaniko/.docker
+                                AUTH_B64=$(printf "%s:%s" "${HARBOR_USER}" "${HARBOR_PASS}" | base64 | tr -d '\\n')
+                                cat > /kaniko/.docker/config.json <<EOF
+{
+  "auths": {
+    "${HARBOR_REGISTRY}": {
+      "auth": "${AUTH_B64}"
+    }
+  }
+}
+EOF
+                                echo ">>> docker config.json đã được tạo tại /kaniko/.docker/config.json"
+                                # Kiểm tra file tồn tại (không in nội dung để bảo mật)
+                                ls -la /kaniko/.docker/config.json
+                            '''
+                        }
+                    }
+                }
+
+                // Bước 2: Kaniko build & push từng microservice lên Harbor
+                container('kaniko') {
+                    script {
+                        echo ">>> Đang build & push Docker Images bằng Kaniko với tag: ${IMAGE_TAG}..."
 
                         // Danh sách các microservice cần build
                         def services = [
@@ -342,20 +379,34 @@ spec:
 
                         services.each { svc ->
                             def dockerfilePath = "app_src/${svc}/Dockerfile"
+
                             // Build nếu service này có thay đổi HOẶC lần đầu chạy
                             if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
-                                def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                                def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
-
                                 if (fileExists(dockerfilePath)) {
-                                    echo ">>> Building: ${imageFull}"
+                                    def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
+                                    def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
+
+                                    echo ">>> Building & Pushing: ${imageFull}"
+
+                                    // Kaniko executor:
+                                    //   --context       : thư mục build context
+                                    //   --dockerfile    : đường dẫn Dockerfile
+                                    //   --destination   : image đích (build + push cùng lúc)
+                                    //   --skip-tls-verify: bỏ qua TLS nếu Harbor dùng self-signed cert
+                                    //                      (xóa dòng này nếu Harbor có cert hợp lệ)
+                                    //   --cache         : bật layer cache để tăng tốc build lần sau
+                                    //   --cache-repo    : nơi lưu cache layers trên Harbor
                                     sh """
-                                        docker build \\
-                                          -t ${imageFull} \\
-                                          -t ${imageLatest} \\
-                                          -f ${dockerfilePath} \\
-                                          ./app_src/${svc}
+                                        /kaniko/executor \\
+                                          --context      \$(pwd)/app_src/${svc} \\
+                                          --dockerfile   \$(pwd)/${dockerfilePath} \\
+                                          --destination  ${imageFull} \\
+                                          --destination  ${imageLatest} \\
+                                          --skip-tls-verify \\
+                                          --cache=true \\
+                                          --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache
                                     """
+                                    echo ">>> Kaniko đã build và push thành công: ${imageFull}"
                                 } else {
                                     echo ">>> Bỏ qua ${svc}: không tìm thấy Dockerfile tại ${dockerfilePath}"
                                 }
@@ -363,64 +414,80 @@ spec:
                                 echo ">>> Bỏ qua ${svc}: không có thay đổi"
                             }
                         }
+
+                        echo ">>> Build & Push hoàn tất! Image tag: ${IMAGE_TAG}"
                     }
                 }
             }
         }
 
         // =====================================================================
-        // STAGE 8: Image Scan - Trivy - Task 2.4 [CẬP NHẬT]
-        // Quét image vừa build thay vì alpine:3.18
+        // STAGE 8: Image Scan - Trivy - Task 2.4
+        // Quét image trực tiếp từ Harbor Registry sau khi Kaniko đã push xong.
+        // Trivy tự authenticate với Harbor qua --username / --password.
         // =====================================================================
         stage('Image Scan - Trivy') {
             steps {
                 container('trivy') {
-                    script {
-                        echo ">>> Đang bắt đầu quét Docker Image bằng Trivy..."
-
-                        def services = [
-                            'adservice', 'cartservice', 'checkoutservice',
-                            'currencyservice', 'emailservice', 'frontend',
-                            'paymentservice', 'productcatalogservice',
-                            'recommendationservice', 'shippingservice'
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10/harbor',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'HARBOR_USER', vaultKey: 'username'],
+                                [envVar: 'HARBOR_PASS', vaultKey: 'password']
+                            ]
                         ]
+                    ]) {
+                        script {
+                            echo ">>> Đang bắt đầu quét Docker Image bằng Trivy (từ Harbor Registry)..."
 
-                        def failedServices = []
+                            def services = [
+                                'adservice', 'cartservice', 'checkoutservice',
+                                'currencyservice', 'emailservice', 'frontend',
+                                'paymentservice', 'productcatalogservice',
+                                'recommendationservice', 'shippingservice'
+                            ]
 
-                        services.each { svc ->
-                            if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
-                                def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                                if (fileExists("app_src/${svc}/Dockerfile")) {
-                                    echo ">>> Scanning image: ${imageFull}"
-                                    def exitCode = sh(
-                                        script: """
-                                            trivy image \\
-                                              --insecure \\
-                                              --format json \\
-                                              --output trivy-image-${svc}-report.json \\
-                                              --exit-code 1 \\
-                                              --severity HIGH,CRITICAL \\
-                                              --ignore-unfixed \\
-                                              ${imageFull}
-                                        """,
-                                        returnStatus: true
-                                    )
-                                    if (exitCode != 0) {
-                                        failedServices.add(svc)
-                                        echo ">>> CẢNH BÁO: ${svc} có lỗ hổng HIGH/CRITICAL!"
+                            def failedServices = []
+
+                            services.each { svc ->
+                                if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
+                                    def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
+                                    if (fileExists("app_src/${svc}/Dockerfile")) {
+                                        echo ">>> Scanning image: ${imageFull}"
+                                        def exitCode = sh(
+                                            script: """
+                                                trivy image \\
+                                                  --insecure \\
+                                                  --username "\${HARBOR_USER}" \\
+                                                  --password "\${HARBOR_PASS}" \\
+                                                  --format json \\
+                                                  --output trivy-image-${svc}-report.json \\
+                                                  --exit-code 1 \\
+                                                  --severity HIGH,CRITICAL \\
+                                                  --ignore-unfixed \\
+                                                  ${imageFull}
+                                            """,
+                                            returnStatus: true
+                                        )
+                                        if (exitCode != 0) {
+                                            failedServices.add(svc)
+                                            echo ">>> CẢNH BÁO: ${svc} có lỗ hổng HIGH/CRITICAL!"
+                                        }
+                                    } else {
+                                        echo ">>> Bỏ qua quét Trivy cho ${svc}: không tìm thấy Dockerfile"
                                     }
                                 } else {
-                                    echo ">>> Bỏ qua quét Trivy cho ${svc}: không tìm thấy Dockerfile"
+                                    echo ">>> Bỏ qua quét Trivy cho ${svc}: không có thay đổi"
                                 }
-                            } else {
-                                echo ">>> Bỏ qua quét Trivy cho ${svc}: không có thay đổi"
                             }
-                        }
 
-                        if (failedServices) {
-                            echo ">>> CẢNH BÁO: Trivy phát hiện lỗ hổng HIGH/CRITICAL trong: ${failedServices.join(', ')}. Xem report để biết chi tiết."
-                        } else {
-                            echo ">>> Tất cả Docker Image đều an toàn!"
+                            if (failedServices) {
+                                echo ">>> CẢNH BÁO: Trivy phát hiện lỗ hổng HIGH/CRITICAL trong: ${failedServices.join(', ')}. Xem report để biết chi tiết."
+                            } else {
+                                echo ">>> Tất cả Docker Image đều an toàn!"
+                            }
                         }
                     }
                 }
@@ -433,84 +500,7 @@ spec:
         }
 
         // =====================================================================
-        // STAGE 9: Push to Harbor - Task 2.4 [MỚI]
-        // Lấy Harbor robot account credential từ Vault thay vì Jenkins credential
-        // Lưu ý: username chứa ký tự "$" nên phải dùng double-quote khi expand
-        //        biến shell để tránh shell tái diễn giải giá trị.
-        // =====================================================================
-        stage('Push to Harbor') {
-            steps {
-                container('docker') {
-                    withVault(vaultSecrets: [
-                        [
-                            path: 'devsecops_nhom10/harbor',
-                            engineVersion: 2,
-                            secretValues: [
-                                [envVar: 'HARBOR_USER', vaultKey: 'username'],
-                                [envVar: 'HARBOR_PASS', vaultKey: 'password']
-                            ]
-                        ]
-                    ]) {
-                        script {
-                            // dockerd đã được khởi động ở Stage 7 (cùng container, cùng pod)
-                            // Nếu vì lý do nào đó chưa chạy thì start lại
-                            sh '''
-                                if ! docker info >/dev/null 2>&1; then
-                                    echo ">>> dockerd chưa sẵn sàng, khởi động lại..."
-                                    dockerd > /tmp/dockerd.log 2>&1 &
-                                    for i in $(seq 1 15); do
-                                        docker info >/dev/null 2>&1 && echo ">>> dockerd sẵn sàng." && break
-                                        sleep 2
-                                    done
-                                    docker info >/dev/null 2>&1 || { echo "ERROR: dockerd không start được!"; cat /tmp/dockerd.log; exit 1; }
-                                else
-                                    echo ">>> dockerd OK."
-                                fi
-                            '''
-
-                            echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
-
-                            // Login vào Harbor bằng credential từ Vault
-                            // Dùng --password-stdin để tránh lộ password trên process list
-                            sh """
-                                echo "\${HARBOR_PASS}" | docker login ${HARBOR_REGISTRY} -u "\${HARBOR_USER}" --password-stdin
-                            """
-
-                            def services = [
-                                'adservice', 'cartservice', 'checkoutservice',
-                                'currencyservice', 'emailservice', 'frontend',
-                                'paymentservice', 'productcatalogservice',
-                                'recommendationservice', 'shippingservice'
-                            ]
-
-                            services.each { svc ->
-                                if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
-                                    if (fileExists("app_src/${svc}/Dockerfile")) {
-                                        def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                                        def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
-                                        echo ">>> Pushing: ${imageFull}"
-                                        sh """
-                                            docker push ${imageFull}
-                                            docker push ${imageLatest}
-                                        """
-                                    }
-                                } else {
-                                    echo ">>> Bỏ qua push cho ${svc}: không có thay đổi"
-                                }
-                            }
-
-                            // Logout sau khi push xong để bảo mật
-                            sh "docker logout ${HARBOR_REGISTRY}"
-
-                            echo ">>> Push thành công! Image tag: ${IMAGE_TAG}"
-                        }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // STAGE 10: Trigger ArgoCD Sync - Task 2.4 [MỚI]
+        // STAGE 10: Trigger ArgoCD Sync - Task 2.4
         // Lấy ArgoCD token từ Vault thay vì Jenkins credential
         // =====================================================================
         stage('Trigger ArgoCD Sync') {
@@ -539,26 +529,26 @@ spec:
                             // Sử dụng tính năng Parameter Overrides của ArgoCD để set tag image mới động
                             // mà không cần phải commit & push thay đổi lên Git, giữ sạch lịch sử commit GitHub!
                             sh """
-                                argocd app set ${ARGOCD_APP_NAME} \
-                                  --helm-set images.tag=${IMAGE_TAG} \
-                                  --grpc-web \
+                                argocd app set ${ARGOCD_APP_NAME} \\
+                                  --helm-set images.tag=${IMAGE_TAG} \\
+                                  --grpc-web \\
                                   --plaintext
                             """
 
                             // Trigger sync
                             sh """
-                                argocd app sync ${ARGOCD_APP_NAME} \
-                                  --grpc-web \
-                                  --plaintext \
+                                argocd app sync ${ARGOCD_APP_NAME} \\
+                                  --grpc-web \\
+                                  --plaintext \\
                                   --timeout 300
                             """
 
                             // Chờ ArgoCD sync hoàn thành và healthy
                             sh """
-                                argocd app wait ${ARGOCD_APP_NAME} \
-                                  --health \
-                                  --grpc-web \
-                                  --plaintext \
+                                argocd app wait ${ARGOCD_APP_NAME} \\
+                                  --health \\
+                                  --grpc-web \\
+                                  --plaintext \\
                                   --timeout 300
                             """
 
@@ -595,11 +585,10 @@ spec:
             """
         }
         always {
-            // Dọn dẹp Docker images cũ để tiết kiệm disk
-            container('docker') {
-                sh 'docker image prune -f --filter "until=24h" || true'
+            // Dọn dẹp docker config.json chứa credentials sau khi pipeline hoàn tất
+            container('tools') {
+                sh 'rm -f /kaniko/.docker/config.json || true'
             }
         }
     }
 }
-
