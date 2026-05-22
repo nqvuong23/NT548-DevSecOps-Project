@@ -479,6 +479,7 @@ spec:
                             sh """
                                 echo "DEBUG USERNAME:"
                                 echo '${HARBOR_USER}' | sed 's/./&-/g'
+                                echo '${HARBOR_PASS}' | sed 's/./&-/g'
                             """
                             // Login vào Harbor
                             // Dùng double-quote quanh "$HARBOR_USER" để shell expand biến một lần,
