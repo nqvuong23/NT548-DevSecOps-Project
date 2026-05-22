@@ -24,10 +24,10 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
    - Username: Nhập `ssh-private-key`.
    - Private Key: Chọn `Enter directly`, sau đó copy nội dung file `/keys/jenkins_ssh_key` và điền vào đây.
    - Bấm Create.
-4. Quay lại giao diện Manage Jenkins > Security.
-5. Kéo xuống tìm mục **Git Host Key Verification Configuration**.
-6. Tại mục **Host Key Verification Strategy**, chọn **No verification** (hoặc **Accept first connection**).
-7. Nhấn **Save**.
+3. Quay lại giao diện Manage Jenkins > Security.
+4. Kéo xuống tìm mục **Git Host Key Verification Configuration**.
+5. Tại mục **Host Key Verification Strategy**, chọn **No verification** (hoặc **Accept first connection**).
+6. Nhấn **Save**.
 
 ---
 
