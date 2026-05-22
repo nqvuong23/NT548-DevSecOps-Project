@@ -402,7 +402,6 @@ EOF
                                           --dockerfile   \$(pwd)/${dockerfilePath} \\
                                           --destination  ${imageFull} \\
                                           --destination  ${imageLatest} \\
-                                          --skip-tls-verify \\
                                           --cache=true \\
                                           --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache
                                     """
@@ -500,7 +499,7 @@ EOF
         }
 
         // =====================================================================
-        // STAGE 10: Trigger ArgoCD Sync - Task 2.4
+        // STAGE 9: Trigger ArgoCD Sync - Task 2.4
         // Lấy ArgoCD token từ Vault thay vì Jenkins credential
         // =====================================================================
         stage('Trigger ArgoCD Sync') {
