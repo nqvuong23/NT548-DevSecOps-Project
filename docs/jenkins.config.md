@@ -58,7 +58,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 
 ---
 
-### Bước 5: Thêm SSH Public Key vào Deploy keys của Private Repo để cho phép Jenkins push/pull tới Repository (do Admin/Nhóm trưởng làm 1 lần duy nhất)
+### Bước 5: Thêm SSH Public Key vào GitHub Account của thành viên nhóm để cho phép Jenkins push/pull tới Repository + trigger Jenkins (do Admin/Nhóm trưởng làm 1 lần duy nhất)
 
 ---
 

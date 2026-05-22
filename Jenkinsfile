@@ -173,7 +173,7 @@ spec:
                     ]) {
                         script {
                             echo ">>> Đang bắt đầu phân tích mã nguồn với SonarQube..."
-                            withSonarQubeEnv() {
+                            withSonarQubeEnv(installationName: 'sonarqube-server') {
                                 sh 'sonar-scanner -Dsonar.token=$SONAR_TOKEN'
                             }
                         }
