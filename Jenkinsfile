@@ -95,23 +95,16 @@ spec:
     environment {
         // Harbor Registry
         HARBOR_REGISTRY    = "harbor.vuongdevops.io.vn"
-        HARBOR_PROJECT     = "devsecops"
-        // Credential ID lưu trong Jenkins (username/password của Harbor robot account)
-        HARBOR_CREDS_ID    = "harbor-robot-credentials"
+        HARBOR_PROJECT     = "devsecops_nhom10"
 
         // Git repo để update Helm values (GitOps)
         GIT_REPO_URL       = "https://github.com/${env.GIT_URL?.tokenize('/')[-2]}/${env.GIT_URL?.tokenize('/')[-1]?.replace('.git','')}"
-        GIT_CREDS_ID       = "github-token"
         GIT_USER_NAME      = "Jenkins Pipeline"
         GIT_USER_EMAIL     = "jenkins@vuongdevops.io.vn"
 
         // ArgoCD
         ARGOCD_SERVER      = "argocd.vuongdevops.io.vn"
         ARGOCD_APP_NAME    = "online-boutique"
-        ARGOCD_CREDS_ID    = "argocd-token"
-
-        // SonarQube
-        SONAR_CREDS_ID     = "sonarqube-token"
 
         // Image tag dùng Git commit SHA (7 ký tự đầu)
         IMAGE_TAG          = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
@@ -120,16 +113,34 @@ spec:
     stages {
         // =====================================================================
         // STAGE 1: Git Checkout
+        // Lấy SSH Private Key từ Vault để clone repo
         // =====================================================================
         stage('Git Checkout') {
             steps {
-                checkout scm
-                script {
-                    // Lấy commit SHA sau khi checkout để đảm bảo chính xác
-                    env.IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
-                    env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    env.CHANGED_FILES = sh(script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
-                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES}"
+                withVault(vaultSecrets: [
+                    [
+                        path: 'devsecops_nhom10/github',
+                        engineVersion: 2,
+                        secretValues: [
+                            [envVar: 'GIT_SSH_PRIVATE_KEY', vaultKey: 'ssh_private_key']
+                        ]
+                    ]
+                ]) {
+                    sh '''
+                        mkdir -p ~/.ssh
+                        chmod 700 ~/.ssh
+                        printf '%s\n' "$GIT_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+                        chmod 600 ~/.ssh/id_rsa
+                        ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+                    '''
+                    checkout scm
+                    script {
+                        // Lấy commit SHA sau khi checkout để đảm bảo chính xác
+                        env.IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+                        env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                        env.CHANGED_FILES = sh(script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
+                        echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES}"
+                    }
                 }
             }
         }
@@ -164,14 +175,23 @@ spec:
 
         // =====================================================================
         // STAGE 3: SAST - SonarQube Analysis - Task 2.3
+        // Lấy SonarQube token từ Vault thay vì Jenkins credential
         // =====================================================================
         stage('SAST - SonarQube') {
             steps {
                 container('sonar-scanner') {
-                    script {
-                        echo ">>> Đang bắt đầu phân tích mã nguồn với SonarQube..."
-                        withSonarQubeEnv() {
-                            withCredentials([string(credentialsId: "${SONAR_CREDS_ID}", variable: 'SONAR_TOKEN')]) {
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10/sonarqube',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'SONAR_TOKEN', vaultKey: 'token']
+                            ]
+                        ]
+                    ]) {
+                        script {
+                            echo ">>> Đang bắt đầu phân tích mã nguồn với SonarQube..."
+                            withSonarQubeEnv() {
                                 sh 'sonar-scanner -Dsonar.token=$SONAR_TOKEN'
                             }
                         }
@@ -365,6 +385,8 @@ spec:
                                         failedServices.add(svc)
                                         echo ">>> CẢNH BÁO: ${svc} có lỗ hổng HIGH/CRITICAL!"
                                     }
+                                } else {
+                                    echo ">>> Bỏ qua quét Trivy cho ${svc}: không tìm thấy Dockerfile"
                                 }
                             } else {
                                 echo ">>> Bỏ qua quét Trivy cho ${svc}: không có thay đổi"
@@ -388,43 +410,52 @@ spec:
 
         // =====================================================================
         // STAGE 9: Push to Harbor - Task 2.4 [MỚI]
-        // Docker login bằng Harbor Robot Account credential từ Jenkins
+        // Lấy Harbor robot account credential từ Vault thay vì Jenkins credential
+        // Lưu ý: username chứa ký tự "$" nên phải dùng double-quote khi expand
+        //        biến shell để tránh shell tái diễn giải giá trị.
         // =====================================================================
         stage('Push to Harbor') {
             steps {
                 container('docker') {
-                    script {
-                        // Khởi động/kiểm tra dockerd cục bộ trước khi login/push
-                        sh """
-                            mkdir -p /etc/docker
-                            echo '{"insecure-registries": ["${HARBOR_REGISTRY}", "${HARBOR_REGISTRY}:443"]}' > /etc/docker/daemon.json
-                            if ! docker info >/dev/null 2>&1 || ! docker info | grep -q "${HARBOR_REGISTRY}"; then
-                                echo ">>> Khởi động lại hoặc chạy mới dockerd với insecure-registry..."
-                                pkill dockerd || true
-                                pkill containerd || true
-                                sleep 2
-                                dockerd >/tmp/dockerd.log 2>&1 &
-                                
-                                # Chờ dockerd sẵn sàng
-                                for i in {1..30}; do
-                                    docker info >/dev/null 2>&1 && break
-                                    echo "Chờ dockerd khởi động..."
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10/harbor',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'HARBOR_USER', vaultKey: 'username'],
+                                [envVar: 'HARBOR_PASS', vaultKey: 'password']
+                            ]
+                        ]
+                    ]) {
+                        script {
+                            // Khởi động/kiểm tra dockerd cục bộ trước khi login/push
+                            sh """
+                                mkdir -p /etc/docker
+                                echo '{"insecure-registries": ["${HARBOR_REGISTRY}", "${HARBOR_REGISTRY}:443"]}' > /etc/docker/daemon.json
+                                if ! docker info >/dev/null 2>&1 || ! docker info | grep -q "${HARBOR_REGISTRY}"; then
+                                    echo ">>> Khởi động lại hoặc chạy mới dockerd với insecure-registry..."
+                                    pkill dockerd || true
+                                    pkill containerd || true
                                     sleep 2
-                                done
-                            fi
-                        """
+                                    dockerd >/tmp/dockerd.log 2>&1 &
+                                    
+                                    # Chờ dockerd sẵn sàng
+                                    for i in {1..30}; do
+                                        docker info >/dev/null 2>&1 && break
+                                        echo "Chờ dockerd khởi động..."
+                                        sleep 2
+                                    done
+                                fi
+                            """
 
-                        echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
+                            echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
 
-                        withCredentials([
-                            usernamePassword(
-                                credentialsId: "${HARBOR_CREDS_ID}",
-                                usernameVariable: 'HARBOR_USER',
-                                passwordVariable: 'HARBOR_PASS'
-                            )
-                        ]) {
                             // Login vào Harbor
-                            sh 'echo "$HARBOR_PASS" | docker login $HARBOR_REGISTRY -u "$HARBOR_USER" --password-stdin'
+                            // Dùng double-quote quanh "$HARBOR_USER" để shell expand biến một lần,
+                            // tránh tái diễn giải ký tự "$" bên trong giá trị username (vd: robot$project+jenkins)
+                            sh '''
+                                echo "$HARBOR_PASS" | docker login "$HARBOR_REGISTRY" -u "$HARBOR_USER" --password-stdin
+                            '''
 
                             def services = [
                                 'adservice', 'cartservice', 'checkoutservice',
@@ -461,21 +492,23 @@ spec:
 
         // =====================================================================
         // STAGE 10: Trigger ArgoCD Sync - Task 2.4 [MỚI]
-        // Cập nhật tag mới trực tiếp qua parameter override của ArgoCD CLI
-        // và thực hiện đồng bộ (Sync) ứng dụng
+        // Lấy ArgoCD token từ Vault thay vì Jenkins credential
         // =====================================================================
         stage('Trigger ArgoCD Sync') {
             steps {
                 container('tools') {
-                    script {
-                        echo ">>> Đang cấu hình và trigger ArgoCD sync cho app: ${ARGOCD_APP_NAME}..."
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10/argocd',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'ARGOCD_AUTH_TOKEN', vaultKey: 'token']
+                            ]
+                        ]
+                    ]) {
+                        script {
+                            echo ">>> Đang cấu hình và trigger ArgoCD sync cho app: ${ARGOCD_APP_NAME}..."
 
-                        withCredentials([
-                            string(
-                                credentialsId: "${ARGOCD_CREDS_ID}",
-                                variable: 'ARGOCD_AUTH_TOKEN'
-                            )
-                        ]) {
                             // Cài argocd CLI nếu chưa có
                             sh """
                                 which argocd || (

@@ -6,17 +6,23 @@
 gcloud kms keyrings create vault-key-ring --location global --project nt548-project
 ```
 
+---
+
 ### Tạo Crypto Key
 
 ```
 gcloud kms keys create vault-unseal-key --location global --keyring vault-key-ring --purpose encryption --project nt548-project
 ```
 
+---
+
 ### Tạo GCP Service Account
 
 ```
 gcloud iam service-accounts create vault-kms-sa --project nt548-project
 ```
+
+---
 
 ### Cấp quyền KMS
 
@@ -58,19 +64,27 @@ kubectl exec vault-0 -n vault -- vault operator unseal $VAULT_UNSEAL_KEY
 kubectl exec vault-0 -n vault -- vault status
 ```
 
+---
+
 ### Đăng nhập vào Hashicorp Vault Web UI
 
 Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ bước cấu hình trên) để đăng nhập.
+
+---
 
 ### Tạo Secret
 
 - **Bước 1**: Ở menu chính, chọn **Secrets Engines** > Nhấn **Enable new engine**.
 - **Bước 2**: Chọn **KV** (Key-Value).
 - **Bước 3**: Ở ô Path, nhập tên secret engine `devsecops_nhom10` > Chọn Version 2 > Nhấn **Enable Engine**.
-- **Bước 4** (Tạo secret): Nhấn vào secret engine vừa tạo > Chọn **Create secret**.
-  - Path for this secret: Nhập tên secret `sonarqube/token`.
-  - Secret data: Nhập cặp Key - Value cho Token của SonarQube --> Key = "token", Value = "<token lấy được khi tạo bên SonarQube Web UI>".
+- **Bước 4** (Tạo các secret): Nhấn vào secret engine vừa tạo > Chọn **Create secret** và tạo lần lượt các secrets sau:
+  - Path = `sonarqube`: Key = `token` - Value = `<token lấy được khi tạo bên SonarQube Web UI>`
+  - Path = `github`: Key = `ssh_private_key` - Value = `<nội dung của file ./keys/jenkins_ssh_key>`
+  - Path = `harbor`: Key = `username` - Value = `<Name của Harbor Robot Account>`, Key = `password` - Value = `<Secret của Harbor Robot Account>` 
+  - Path = `argocd`: Key = `token` - Value = `<Token của ArgoCD>`
   - Nhấn Save.
+
+---
 
 ### Bật tính năng AppRole (Auth Method)
 
@@ -78,6 +92,8 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
 2. Nhấn nút **Enable new method**.
 3. Tìm và chọn **AppRole** trong danh sách.
 4. Ở ô **Path**, Vault sẽ tự điền là approle (cứ để mặc định) > Nhấn **Enable Method**.
+
+---
 
 ### Tạo Chính sách (Policy) cho Jenkins
 
@@ -88,12 +104,23 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
   - Policy: Copy và dán đoạn code phân quyền phía dưới vào khung cấu hình
 
 ```
-path "devsecops_nhom10/data/sonarqube/*" {
+path "devsecops_nhom10/data/sonarqube" {
+  capabilities = ["read"]
+}
+path "devsecops_nhom10/data/github" {
+  capabilities = ["read"]
+}
+path "devsecops_nhom10/data/harbor" {
+  capabilities = ["read"]
+}
+path "devsecops_nhom10/data/argocd" {
   capabilities = ["read"]
 }
 ```
 
 4. Kéo xuống dưới cùng và nhấn **Create policy**.
+
+---
 
 ### Tạo và cấu hình AppRole cho Jenkins
 
@@ -104,6 +131,8 @@ path "devsecops_nhom10/data/sonarqube/*" {
 # Tạo Role tên jenkins-role và gắn policy jenkins-policy vào
 vault write auth/approle/role/jenkins-role token_policies="jenkins-policy"
 ```
+
+---
 
 ### Lấy RoleID và SecretID từ Web UI để điền vào Jenkins
 
@@ -116,4 +145,3 @@ vault read auth/approle/role/jenkins-role/role-id
 # Tạo và lấy SecretID (Cần lưu lại, cái này cần bảo mật)
 vault write -f auth/approle/role/jenkins-role/secret-id
 ```
-
