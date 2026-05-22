@@ -306,25 +306,16 @@ spec:
             steps {
                 container('docker') {
                     script {
-                        // Khởi động dockerd (Docker-in-Docker) cục bộ với --insecure-registry
-                        sh """
-                            mkdir -p /etc/docker
-                            echo '{"insecure-registries": ["${HARBOR_REGISTRY}", "${HARBOR_REGISTRY}:443"]}' > /etc/docker/daemon.json
-                            if ! docker info >/dev/null 2>&1 || ! docker info | grep -q "${HARBOR_REGISTRY}"; then
-                                echo ">>> Khởi động lại hoặc chạy mới dockerd với insecure-registry..."
-                                pkill dockerd || true
-                                pkill containerd || true
+                        // Chờ dockerd (Docker-in-Docker) sẵn sàng — không cần insecure-registry vì Harbor dùng HTTPS
+                        sh '''
+                            echo ">>> Chờ dockerd sẵn sàng..."
+                            for i in $(seq 1 30); do
+                                docker info >/dev/null 2>&1 && echo ">>> dockerd đã sẵn sàng." && break
+                                echo "Chờ dockerd khởi động... ($i/30)"
                                 sleep 2
-                                dockerd >/tmp/dockerd.log 2>&1 &
-                                
-                                # Chờ dockerd sẵn sàng
-                                for i in {1..30}; do
-                                    docker info >/dev/null 2>&1 && break
-                                    echo "Chờ dockerd khởi động..."
-                                    sleep 2
-                                done
-                            fi
-                        """
+                            done
+                            docker info >/dev/null 2>&1 || { echo "ERROR: dockerd không khởi động được!"; exit 1; }
+                        '''
 
                         echo ">>> Đang build Docker Image với tag: ${IMAGE_TAG}..."
 
@@ -454,37 +445,19 @@ spec:
                         ]
                     ]) {
                         script {
-                            // Khởi động/kiểm tra dockerd cục bộ trước khi login/push
-                            sh """
-                                mkdir -p /etc/docker
-                                echo '{"insecure-registries": ["${HARBOR_REGISTRY}", "${HARBOR_REGISTRY}:443"]}' > /etc/docker/daemon.json
-                                if ! docker info >/dev/null 2>&1 || ! docker info | grep -q "${HARBOR_REGISTRY}"; then
-                                    echo ">>> Khởi động lại hoặc chạy mới dockerd với insecure-registry..."
-                                    pkill dockerd || true
-                                    pkill containerd || true
-                                    sleep 2
-                                    dockerd >/tmp/dockerd.log 2>&1 &
-                                    
-                                    # Chờ dockerd sẵn sàng
-                                    for i in {1..30}; do
-                                        docker info >/dev/null 2>&1 && break
-                                        echo "Chờ dockerd khởi động..."
-                                        sleep 2
-                                    done
-                                fi
-                            """
+                            // Kiểm tra dockerd sẵn sàng trước khi login/push — Harbor dùng HTTPS, không cần insecure-registry
+                            sh '''
+                                echo ">>> Kiểm tra dockerd..."
+                                docker info >/dev/null 2>&1 || { echo "ERROR: dockerd chưa sẵn sàng!"; exit 1; }
+                                echo ">>> dockerd OK."
+                            '''
 
                             echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
 
+                            // Login vào Harbor bằng credential từ Vault
+                            // Dùng --password-stdin để tránh lộ password trên process list
                             sh """
-                                echo "DEBUG USERNAME:"
-                                echo '${HARBOR_USER}' | sed 's/./&-/g'
-                                echo '${HARBOR_PASS}' | sed 's/./&-/g'
-                            """
-                            // Login vào Harbor
-                            sh """
-                                # echo ${HARBOR_PASS} | docker login ${HARBOR_REGISTRY} -u '${HARBOR_USER}' --password-stdin
-                                docker login ${HARBOR_REGISTRY} -u admin -p admin
+                                echo "\${HARBOR_PASS}" | docker login ${HARBOR_REGISTRY} -u "\${HARBOR_USER}" --password-stdin
                             """
 
                             def services = [
@@ -510,11 +483,11 @@ spec:
                                 }
                             }
 
-                            // Logout để bảo mật
-                            sh 'docker logout $HARBOR_REGISTRY'
-                        }
+                            // Logout sau khi push xong để bảo mật
+                            sh "docker logout ${HARBOR_REGISTRY}"
 
-                        echo ">>> Push thành công! Image tag: ${IMAGE_TAG}"
+                            echo ">>> Push thành công! Image tag: ${IMAGE_TAG}"
+                        }
                     }
                 }
             }
