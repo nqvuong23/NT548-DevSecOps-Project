@@ -187,14 +187,58 @@ spec:
         // =====================================================================
         stage('Quality Gate Check') {
             steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    script {
-                        echo ">>> Đang chờ kết quả Quality Gate từ SonarQube Webhook..."
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "Pipeline bị hủy vì không vượt qua được SonarQube Quality Gate! Trạng thái: ${qg.status}"
+                container('sonar-scanner') {
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10/sonarqube',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'SONAR_TOKEN', vaultKey: 'token']
+                            ]
+                        ]
+                    ]) {
+                        withSonarQubeEnv() {
+                            script {
+                                echo ">>> Đang chờ kết quả Quality Gate từ SonarQube..."
+
+                                // Lấy task ID từ file report-task.txt do sonar-scanner tạo ra
+                                def taskId = sh(
+                                    script: "grep 'ceTaskId=' .scannerwork/report-task.txt | cut -d'=' -f2",
+                                    returnStdout: true
+                                ).trim()
+                                echo ">>> Polling task ID: ${taskId}"
+
+                                // Chờ SonarQube xử lý xong task phân tích (tối đa 10 phút)
+                                timeout(time: 10, unit: 'MINUTES') {
+                                    waitUntil(initialRecurrencePeriod: 10000) {
+                                        def taskStatus = sh(
+                                            script: """
+                                                curl -sf -u "\${SONAR_TOKEN}:" "\${SONAR_HOST_URL}/api/ce/task?id=${taskId}" \
+                                                  | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4
+                                            """,
+                                            returnStdout: true
+                                        ).trim()
+                                        echo ">>> Task processing status: ${taskStatus}"
+                                        return taskStatus in ['SUCCESS', 'FAILED', 'CANCELLED', 'ERROR']
+                                    }
+                                }
+
+                                // Kiểm tra kết quả Quality Gate sau khi task xử lý xong
+                                def qgStatus = sh(
+                                    script: """
+                                        curl -sf -u "\${SONAR_TOKEN}:" "\${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=DevSecOps_Nhom10" \
+                                          | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+
+                                echo ">>> Quality Gate status: ${qgStatus}"
+                                if (qgStatus != 'OK') {
+                                    error "Pipeline bị hủy vì không vượt qua được SonarQube Quality Gate! Trạng thái: ${qgStatus}"
+                                }
+                                echo ">>> Quality Gate PASSED!"
+                            }
                         }
-                        echo ">>> Quality Gate PASSED!"
                     }
                 }
             }
