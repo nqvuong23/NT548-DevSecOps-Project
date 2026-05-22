@@ -483,7 +483,8 @@ spec:
                             """
                             // Login vào Harbor
                             sh """
-                                echo ${HARBOR_PASS} | docker login ${HARBOR_REGISTRY} -u '${HARBOR_USER}' --password-stdin
+                                # echo ${HARBOR_PASS} | docker login ${HARBOR_REGISTRY} -u '${HARBOR_USER}' --password-stdin
+                                docker login ${HARBOR_REGISTRY} -u admin -p admin
                             """
 
                             def services = [
