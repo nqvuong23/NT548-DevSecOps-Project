@@ -476,6 +476,10 @@ spec:
 
                             echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
 
+                            sh """
+                                echo "DEBUG USERNAME:"
+                                echo '${HARBOR_USER}' | sed 's/./&-/g'
+                            """
                             // Login vào Harbor
                             // Dùng double-quote quanh "$HARBOR_USER" để shell expand biến một lần,
                             // tránh tái diễn giải ký tự "$" bên trong giá trị username (vd: robot$project+jenkins)
