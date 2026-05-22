@@ -197,7 +197,7 @@ spec:
                             ]
                         ]
                     ]) {
-                        withSonarQubeEnv() {
+                        withSonarQubeEnv(installationName: 'sonarqube-server') {
                             script {
                                 echo ">>> Đang chờ kết quả Quality Gate từ SonarQube..."
 
