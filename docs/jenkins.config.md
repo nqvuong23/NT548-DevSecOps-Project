@@ -62,7 +62,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 
 ---
 
-### Bước 6: Cấu hình Jenkins sử dụng HashiCorp Vault
+### Bước 6: Cấu hình Jenkins sử dụng HashiCorp Vault và SonarQube
 
 1. Vào Manage Jenkins (biểu tượng răng cưa) > Credentials > Add Credentials. Điền các thông tin sau:
    - Kind: Chọn `Vault AppRole Credential`.
@@ -70,7 +70,12 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
    - Secret ID: Dán mã `SecretID` bạn vừa lấy ở trên.
    - ID: Nhập `jenkins-vault-approle`.
    - Bấm Create
-2. Vào Manage Jenkins > System > Tìm đến mục Vault Plugin. Nhập các thông tin sau:
+2. Vào Manage Jenkins > System 
+3. Tìm đến mục `Vault Plugin`. Nhập các thông tin sau:
    - Vault URL: Nhập `http://vault.vault.svc.cluster.local:8200`
    - Vault Credentials: Chọn `jenkins-vault-approle`
-   - Apply and Save
+4. Tìm đến mục `SonarQube servers` > Nhấn Add SonarQube. Nhập các thông tin sau:
+   - Name: Nhập `sonarqube-server`.
+   - Server URL: Nhập `http://sonarqube-release-sonarqube.sonarqube.svc.cluster.local:9000`
+   - Server authentication token: Không cần thêm token ở đây (vì lấy từ HashiCorp Vault)
+5. Apply and Save
