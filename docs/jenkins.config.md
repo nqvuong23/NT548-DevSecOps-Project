@@ -14,7 +14,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 
 ---
 
-### Bước 2: Lưu SSH Private Key vào Jenkins Credentials
+### Bước 2: Lưu SSH Private Key vào Jenkins Credentials và cấu hình Git Host Key Verification
 
 1. Ở góc trên bên phải, chọn Manage Jenkins (biểu tượng răng cưa) > Credentials > Click `Add Credentials`.
 2. Điền các thông tin sau:
@@ -24,6 +24,10 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
    - Username: Nhập `ssh-private-key`.
    - Private Key: Chọn `Enter directly`, sau đó copy nội dung file `/keys/jenkins_ssh_key` và điền vào đây.
    - Bấm Create.
+4. Quay lại giao diện Manage Jenkins > Security.
+5. Kéo xuống tìm mục **Git Host Key Verification Configuration**.
+6. Tại mục **Host Key Verification Strategy**, chọn **No verification** (hoặc **Accept first connection**).
+7. Nhấn **Save**.
 
 ---
 
@@ -35,7 +39,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 4. Cuộn xuống mục **Pipeline**, thiết lập như sau:
    - Definition: Chọn `Pipeline script from SCM`.
    - SCM: Chọn `Git`.
-   - Repository URL: Dán link GitHub repo của nhóm vào.
+   - Repository URL: Dán link GitHub repo của nhóm vào (không phải HTTPS URL, dùng SSH).
    - Branch Specifier: `*/main`.
    - Script Path: Nhập `Jenkinsfile`.
 5. Tích vào ô **GitHub hook trigger for GITScm polling** ở mục Build Triggers.
