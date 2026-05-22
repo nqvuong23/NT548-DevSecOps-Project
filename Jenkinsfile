@@ -113,34 +113,16 @@ spec:
     stages {
         // =====================================================================
         // STAGE 1: Git Checkout
-        // Lấy SSH Private Key từ Vault để clone repo
         // =====================================================================
         stage('Git Checkout') {
             steps {
-                withVault(vaultSecrets: [
-                    [
-                        path: 'devsecops_nhom10/github',
-                        engineVersion: 2,
-                        secretValues: [
-                            [envVar: 'GIT_SSH_PRIVATE_KEY', vaultKey: 'ssh_private_key']
-                        ]
-                    ]
-                ]) {
-                    sh '''
-                        mkdir -p ~/.ssh
-                        chmod 700 ~/.ssh
-                        printf '%s\n' "$GIT_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-                        chmod 600 ~/.ssh/id_rsa
-                        ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-                    '''
-                    checkout scm
-                    script {
-                        // Lấy commit SHA sau khi checkout để đảm bảo chính xác
-                        env.IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
-                        env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                        env.CHANGED_FILES = sh(script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
-                        echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES}"
-                    }
+                checkout scm
+                script {
+                    // Lấy commit SHA sau khi checkout để đảm bảo chính xác
+                    env.IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+                    env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    env.CHANGED_FILES = sh(script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
+                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES}"
                 }
             }
         }

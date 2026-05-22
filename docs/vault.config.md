@@ -79,7 +79,6 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
 - **Bước 3**: Ở ô Path, nhập tên secret engine `devsecops_nhom10` > Chọn Version 2 > Nhấn **Enable Engine**.
 - **Bước 4** (Tạo các secret): Nhấn vào secret engine vừa tạo > Chọn **Create secret** và tạo lần lượt các secrets sau:
   - Path = `sonarqube`: Key = `token` - Value = `<token lấy được khi tạo bên SonarQube Web UI>`
-  - Path = `github`: Key = `ssh_private_key` - Value = `<nội dung của file ./keys/jenkins_ssh_key>`
   - Path = `harbor`: Key = `username` - Value = `<Name của Harbor Robot Account>`, Key = `password` - Value = `<Secret của Harbor Robot Account>` 
   - Path = `argocd`: Key = `token` - Value = `<Token của ArgoCD>`
   - Nhấn Save.
@@ -105,9 +104,6 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
 
 ```
 path "devsecops_nhom10/data/sonarqube" {
-  capabilities = ["read"]
-}
-path "devsecops_nhom10/data/github" {
   capabilities = ["read"]
 }
 path "devsecops_nhom10/data/harbor" {

@@ -14,7 +14,20 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 
 ---
 
-### Bước 2: Tạo Pipeline Job
+### Bước 2: Lưu SSH Private Key vào Jenkins Credentials
+
+1. Ở góc trên bên phải, chọn Manage Jenkins (biểu tượng răng cưa) > Credentials > Click `Add Credentials`.
+2. Điền các thông tin sau:
+   - Kind: Chọn `SSH Username with private key` > Nhấn `Next`.
+   - Scope: Chọn `Global`.
+   - ID: Nhập `ssh-private-key`.
+   - Username: Nhập `ssh-private-key`.
+   - Private Key: Chọn `Enter directly`, sau đó copy nội dung file `/keys/jenkins_ssh_key` và điền vào đây.
+   - Bấm Create.
+
+---
+
+### Bước 3: Tạo Pipeline Job
 
 1. Quay ra trang chủ Jenkins, bấm **New Item**.
 2. Nhập tên Job: `DevSecOps-Pipeline-Nhom10`.
@@ -30,7 +43,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 
 ---
 
-### Bước 3: Cấu hình GitHub Webhook (tự động trigger Pipeline khi push code - chỉ làm 1 lần duy nhất)
+### Bước 4: Cấu hình GitHub Webhook (tự động trigger Pipeline khi push code - chỉ làm 1 lần duy nhất)
 
 1. Vào GitHub repo → **Settings** → **Webhooks** → **Add webhook**.
 2. Điền thông tin:
@@ -41,11 +54,11 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 
 ---
 
-### Bước 4: Thêm SSH Public Key vào tài khoản GitHub để cho phép Jenkins push/pull tới Repository (do Admin/Nhóm trưởng làm 1 lần duy nhất)
+### Bước 5: Thêm SSH Public Key vào tài khoản GitHub để cho phép Jenkins push/pull tới Repository (do Admin/Nhóm trưởng làm 1 lần duy nhất)
 
 ---
 
-### Bước 5: Cấu hình Jenkins sử dụng HashiCorp Vault
+### Bước 6: Cấu hình Jenkins sử dụng HashiCorp Vault
 
 1. Vào Manage Jenkins (biểu tượng răng cưa) > Credentials > Add Credentials. Điền các thông tin sau:
    - Kind: Chọn `Vault AppRole Credential`.
