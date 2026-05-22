@@ -482,8 +482,6 @@ spec:
                                 echo '${HARBOR_PASS}' | sed 's/./&-/g'
                             """
                             // Login vào Harbor
-                            // Dùng double-quote quanh "$HARBOR_USER" để shell expand biến một lần,
-                            // tránh tái diễn giải ký tự "$" bên trong giá trị username (vd: robot$project+jenkins)
                             sh """
                                 echo ${HARBOR_PASS} | docker login ${HARBOR_REGISTRY} -u '${HARBOR_USER}' --password-stdin
                             """
