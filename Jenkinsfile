@@ -306,15 +306,22 @@ spec:
             steps {
                 container('docker') {
                     script {
-                        // Chờ dockerd (Docker-in-Docker) sẵn sàng — không cần insecure-registry vì Harbor dùng HTTPS
+                        // Lưu ý: container docker:dind dùng command: [sleep] nên entrypoint bị override,
+                        // dockerd KHÔNG tự khởi động — cần start thủ công ở đây.
                         sh '''
-                            echo ">>> Chờ dockerd sẵn sàng..."
-                            for i in $(seq 1 30); do
-                                docker info >/dev/null 2>&1 && echo ">>> dockerd đã sẵn sàng." && break
-                                echo "Chờ dockerd khởi động... ($i/30)"
-                                sleep 2
-                            done
-                            docker info >/dev/null 2>&1 || { echo "ERROR: dockerd không khởi động được!"; exit 1; }
+                            if ! docker info >/dev/null 2>&1; then
+                                echo ">>> Khởi động dockerd thủ công (entrypoint bị override bởi sleep)..."
+                                dockerd > /tmp/dockerd.log 2>&1 &
+                                echo ">>> Chờ dockerd sẵn sàng..."
+                                for i in $(seq 1 30); do
+                                    docker info >/dev/null 2>&1 && echo ">>> dockerd đã sẵn sàng." && break
+                                    echo "Chờ dockerd... ($i/30)"
+                                    sleep 2
+                                done
+                                docker info >/dev/null 2>&1 || { echo "ERROR: dockerd không start được! Log:"; cat /tmp/dockerd.log; exit 1; }
+                            else
+                                echo ">>> dockerd đã sẵn sàng."
+                            fi
                         '''
 
                         echo ">>> Đang build Docker Image với tag: ${IMAGE_TAG}..."
@@ -445,11 +452,20 @@ spec:
                         ]
                     ]) {
                         script {
-                            // Kiểm tra dockerd sẵn sàng trước khi login/push — Harbor dùng HTTPS, không cần insecure-registry
+                            // dockerd đã được khởi động ở Stage 7 (cùng container, cùng pod)
+                            // Nếu vì lý do nào đó chưa chạy thì start lại
                             sh '''
-                                echo ">>> Kiểm tra dockerd..."
-                                docker info >/dev/null 2>&1 || { echo "ERROR: dockerd chưa sẵn sàng!"; exit 1; }
-                                echo ">>> dockerd OK."
+                                if ! docker info >/dev/null 2>&1; then
+                                    echo ">>> dockerd chưa sẵn sàng, khởi động lại..."
+                                    dockerd > /tmp/dockerd.log 2>&1 &
+                                    for i in $(seq 1 15); do
+                                        docker info >/dev/null 2>&1 && echo ">>> dockerd sẵn sàng." && break
+                                        sleep 2
+                                    done
+                                    docker info >/dev/null 2>&1 || { echo "ERROR: dockerd không start được!"; cat /tmp/dockerd.log; exit 1; }
+                                else
+                                    echo ">>> dockerd OK."
+                                fi
                             '''
 
                             echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
