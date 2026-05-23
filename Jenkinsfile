@@ -313,8 +313,10 @@ spec:
         //   3. Kaniko đọc config.json, build image từ Dockerfile và push
         //      thẳng lên Harbor trong một lệnh duy nhất.
         //
-        // Lưu ý: Stage 9 (Push) đã được hợp nhất vào đây vì Kaniko build
-        //        và push cùng lúc qua flag --destination.
+        // QUAN TRỌNG: Kaniko executor thoát ra sau mỗi lần build, do đó
+        //   không thể gọi nhiều lệnh sh riêng lẻ trong cùng một container
+        //   block. Giải pháp: xây dựng một shell script duy nhất chứa toàn
+        //   bộ các lệnh kaniko và chạy trong một sh call.
         // =====================================================================
         stage('Build & Push Images via Kaniko') {
             steps {
@@ -359,6 +361,17 @@ EOF
                 }
 
                 // Bước 2: Kaniko build & push từng microservice lên Harbor
+                //
+                // FIX: Kaniko executor process thoát ra (exit) sau mỗi lần
+                // build xong. Nếu gọi sh() nhiều lần trong cùng container
+                // block, Jenkins sẽ báo lỗi "Process exited immediately after
+                // creation" từ lần build thứ 2 trở đi vì shell trong container
+                // không còn tồn tại.
+                //
+                // Giải pháp: Xây dựng toàn bộ các lệnh kaniko thành một
+                // chuỗi script duy nhất trong Groovy, sau đó thực thi bằng
+                // một sh() call duy nhất — Kaniko chạy tuần tự từng lệnh
+                // trong cùng một shell process.
                 container('kaniko') {
                     script {
                         echo ">>> Đang build & push Docker Images bằng Kaniko với tag: ${IMAGE_TAG}..."
@@ -377,44 +390,43 @@ EOF
                             'shippingservice'
                         ]
 
+                        // Xây dựng script shell tổng hợp — tất cả lệnh kaniko
+                        // được nối vào một chuỗi và chạy trong một sh() duy nhất.
+                        // Điều này đảm bảo container shell process không thoát
+                        // giữa các lần build.
+                        def buildScript = '#!/busybox/sh\nset -e\n'
+
                         services.each { svc ->
                             def dockerfilePath = "app_src/${svc}/Dockerfile"
 
-                            // Build nếu service này có thay đổi HOẶC lần đầu chạy
                             if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
                                 if (fileExists(dockerfilePath)) {
                                     def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
                                     def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
 
-                                    echo ">>> Building & Pushing: ${imageFull}"
-
-                                    // Kaniko executor:
-                                    //   --context       : thư mục build context
-                                    //   --dockerfile    : đường dẫn Dockerfile
-                                    //   --destination   : image đích (build + push cùng lúc)
-                                    //   --skip-tls-verify: bỏ qua TLS nếu Harbor dùng self-signed cert
-                                    //                      (xóa dòng này nếu Harbor có cert hợp lệ)
-                                    //   --cache         : bật layer cache để tăng tốc build lần sau
-                                    //   --cache-repo    : nơi lưu cache layers trên Harbor
-                                    sh """
-                                        /kaniko/executor \\
-                                          --context      \$(pwd)/app_src/${svc} \\
-                                          --dockerfile   \$(pwd)/${dockerfilePath} \\
-                                          --destination  ${imageFull} \\
-                                          --destination  ${imageLatest} \\
-                                          --cache=true \\
-                                          --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache
-                                    """
-                                    echo ">>> Kaniko đã build và push thành công: ${imageFull}"
+                                    buildScript += """
+echo '>>> Building & Pushing: ${imageFull}'
+/kaniko/executor \\
+  --context      \$(pwd)/app_src/${svc} \\
+  --dockerfile   \$(pwd)/${dockerfilePath} \\
+  --destination  ${imageFull} \\
+  --destination  ${imageLatest} \\
+  --cache=true \\
+  --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache
+echo '>>> Kaniko đã build và push thành công: ${imageFull}'
+"""
                                 } else {
-                                    echo ">>> Bỏ qua ${svc}: không tìm thấy Dockerfile tại ${dockerfilePath}"
+                                    buildScript += "echo '>>> Bỏ qua ${svc}: không tìm thấy Dockerfile tại ${dockerfilePath}'\n"
                                 }
                             } else {
-                                echo ">>> Bỏ qua ${svc}: không có thay đổi"
+                                buildScript += "echo '>>> Bỏ qua ${svc}: không có thay đổi'\n"
                             }
                         }
 
-                        echo ">>> Build & Push hoàn tất! Image tag: ${IMAGE_TAG}"
+                        buildScript += "echo '>>> Build & Push hoàn tất! Image tag: ${IMAGE_TAG}'\n"
+
+                        // Thực thi toàn bộ script trong một sh() call duy nhất
+                        sh(script: buildScript)
                     }
                 }
             }
@@ -499,59 +511,69 @@ EOF
         }
 
         // =====================================================================
-        // STAGE 9: Trigger ArgoCD Sync - Task 2.4
-        // Lấy ArgoCD token từ Vault thay vì Jenkins credential
+        // STAGE 9: GitOps - Update values.yaml & Trigger ArgoCD Auto-Sync
+        //
+        // Chuẩn GitOps: Thay vì gọi ArgoCD API bằng token, Jenkins chỉ
+        // cần cập nhật images.tag trong helm-chart/microservices/values.yaml
+        // và push commit lên Git. ArgoCD tự động phát hiện thay đổi qua
+        // automated sync policy (prune + selfHeal) và sync app.
+        //
+        // Lợi ích:
+        //   - Không cần lưu ArgoCD token trong Vault/Jenkins.
+        //   - Lịch sử Git là audit trail đầy đủ của mọi lần deploy.
+        //   - Đúng chuẩn GitOps: Git là source of truth duy nhất.
         // =====================================================================
-        stage('Trigger ArgoCD Sync') {
+        stage('GitOps - Update Image Tag & Push') {
             steps {
                 container('tools') {
                     withVault(vaultSecrets: [
                         [
-                            path: 'devsecops_nhom10_kv/argocd',
+                            path: 'devsecops_nhom10_kv/github',
                             engineVersion: 2,
                             secretValues: [
-                                [envVar: 'ARGOCD_AUTH_TOKEN', vaultKey: 'token']
+                                [envVar: 'GIT_TOKEN', vaultKey: 'token']
                             ]
                         ]
                     ]) {
                         script {
-                            echo ">>> Đang cấu hình và trigger ArgoCD sync cho app: ${ARGOCD_APP_NAME}..."
+                            echo ">>> [GitOps] Cập nhật images.tag=${IMAGE_TAG} vào values.yaml và push lên Git..."
 
-                            // Cài argocd CLI nếu chưa có
                             sh """
-                                which argocd || (
-                                    curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 &&
-                                    chmod +x /usr/local/bin/argocd
-                                )
-                            """
+                                # Cài yq nếu chưa có (dùng để update YAML chính xác)
+                                if ! which yq > /dev/null 2>&1; then
+                                    echo '>>> Cài đặt yq...'
+                                    wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+                                    chmod +x /usr/local/bin/yq
+                                fi
 
-                            // Sử dụng tính năng Parameter Overrides của ArgoCD để set tag image mới động
-                            // mà không cần phải commit & push thay đổi lên Git, giữ sạch lịch sử commit GitHub!
-                            sh """
-                                argocd app set ${ARGOCD_APP_NAME} \\
-                                  --helm-set images.tag=${IMAGE_TAG} \\
-                                  --grpc-web \\
-                                  --plaintext
-                            """
+                                # Cấu hình git identity
+                                git config user.name  "${GIT_USER_NAME}"
+                                git config user.email "${GIT_USER_EMAIL}"
 
-                            // Trigger sync
-                            sh """
-                                argocd app sync ${ARGOCD_APP_NAME} \\
-                                  --grpc-web \\
-                                  --plaintext \\
-                                  --timeout 300
-                            """
+                                # Cập nhật images.tag trong values.yaml bằng yq
+                                # yq đảm bảo chỉ thay đúng field, không làm hỏng cấu trúc YAML
+                                yq e '.images.tag = "${IMAGE_TAG}"' -i helm-chart/microservices/values.yaml
 
-                            // Chờ ArgoCD sync hoàn thành và healthy
-                            sh """
-                                argocd app wait ${ARGOCD_APP_NAME} \\
-                                  --health \\
-                                  --grpc-web \\
-                                  --plaintext \\
-                                  --timeout 300
-                            """
+                                echo '>>> Nội dung images section sau khi cập nhật:'
+                                yq e '.images' helm-chart/microservices/values.yaml
 
-                            echo ">>> ArgoCD sync thành công! App ${ARGOCD_APP_NAME} đang healthy với tag: ${IMAGE_TAG}."
+                                # Stage và commit thay đổi
+                                git add helm-chart/microservices/values.yaml
+
+                                # Chỉ commit nếu có thay đổi thực sự
+                                if git diff --cached --quiet; then
+                                    echo '>>> values.yaml không có thay đổi (tag đã là ${IMAGE_TAG}), bỏ qua commit.'
+                                else
+                                    git commit -m "ci: update image tag to ${IMAGE_TAG} [skip ci]"
+
+                                    # Push lên Git bằng token (HTTPS)
+                                    REPO_URL=\$(git remote get-url origin | sed 's|https://|https://${GIT_TOKEN}@|')
+                                    git push \${REPO_URL} HEAD:${env.GIT_BRANCH_NAME}
+
+                                    echo '>>> [GitOps] Đã push values.yaml với tag ${IMAGE_TAG} lên Git.'
+                                    echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và sync app ${ARGOCD_APP_NAME}.'
+                                fi
+                            """
                         }
                     }
                 }

@@ -39,6 +39,7 @@ kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenki
 4. Cuộn xuống mục **Pipeline**, thiết lập như sau:
    - Definition: Chọn `Pipeline script from SCM`.
    - SCM: Chọn `Git`.
+   - Credentials: Chọn `ssh-private-key`
    - Repository URL: Dán link GitHub repo của nhóm vào (không phải HTTPS URL, dùng SSH).
    - Branch Specifier: `*/main`.
    - Script Path: Nhập `Jenkinsfile`.
