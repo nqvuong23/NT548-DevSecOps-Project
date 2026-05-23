@@ -395,6 +395,10 @@ EOF
                         // giữa các lần build.
                         def buildScript = '#!/busybox/sh\nset -e\n'
 
+                        // Track service nào thực sự được build để Stage 9 (GitOps)
+                        // chỉ cập nhật tag của đúng service đó trong values.yaml.
+                        def builtServices = []
+
                         services.each { svc ->
                             def dockerfilePath = "app_src/${svc}/Dockerfile"
 
@@ -402,6 +406,9 @@ EOF
                                 if (fileExists(dockerfilePath)) {
                                     def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
                                     def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
+
+                                    // Đánh dấu service này sẽ được build & push
+                                    builtServices.add(svc)
 
                                     buildScript += """
 echo '>>> Building & Pushing: ${imageFull}'
@@ -423,6 +430,10 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                         }
 
                         buildScript += "echo '>>> Build & Push hoàn tất! Image tag: ${IMAGE_TAG}'\n"
+
+                        // Lưu danh sách service đã build vào env var để Stage 9 dùng
+                        env.BUILT_SERVICES = builtServices.join(',')
+                        echo ">>> Services đã build & push: ${builtServices.join(', ') ?: 'không có service nào'}"
 
                         // Thực thi toàn bộ script trong một sh() call duy nhất
                         sh(script: buildScript)
@@ -512,62 +523,152 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
         // =====================================================================
         // STAGE 9: GitOps - Update values.yaml & Trigger ArgoCD Auto-Sync
         //
-        // Chuẩn GitOps: Thay vì gọi ArgoCD API bằng token, Jenkins chỉ
-        // cần cập nhật images.tag trong helm-chart/microservices/values.yaml
-        // và push commit lên Git. ArgoCD tự động phát hiện thay đổi qua
-        // automated sync policy (prune + selfHeal) và sync app.
+        // Chuẩn GitOps: Jenkins chỉ cập nhật tag của từng service đã build
+        // trong helm-chart/microservices/values.yaml và push commit lên Git.
+        // ArgoCD tự động phát hiện thay đổi qua automated sync policy và sync.
+        //
+        // Cơ chế xác thực SSH:
+        //   - Dùng withCredentials + sshUserPrivateKey binding (SSH Credentials
+        //     Plugin — đã có sẵn, KHÔNG cần SSH Agent Plugin).
+        //   - Jenkins ghi private key ra file tạm (SSH_KEY_FILE), pipeline tự
+        //     cấu hình ~/.ssh/id_rsa và GIT_SSH_COMMAND để git dùng đúng key.
+        //   - Credential ID: "ssh-private-key" (loại "SSH Username with private
+        //     key", username: "ssh-private-key").
+        //   - Push qua SSH URL: git@github.com:<owner>/<repo>.git
+        //     (convert từ HTTPS remote URL của checkout scm nếu cần).
+        //
+        // Cơ chế cập nhật tag:
+        //   - Chỉ cập nhật tag của service nào thực sự được build & push
+        //     (dựa vào env.BUILT_SERVICES từ Stage 7). Các service không thay
+        //     đổi giữ nguyên tag cũ — đúng với cấu trúc values.yaml mới (mỗi
+        //     service có tag riêng thay vì dùng chung images.tag).
+        //   - Nếu không có service nào được build, stage kết thúc sớm (no-op).
         //
         // Lợi ích:
         //   - Không cần lưu ArgoCD token trong Vault/Jenkins.
         //   - Lịch sử Git là audit trail đầy đủ của mọi lần deploy.
         //   - Đúng chuẩn GitOps: Git là source of truth duy nhất.
+        //   - Granular tag update: rollback từng service độc lập.
         // =====================================================================
         stage('GitOps - Update Image Tag & Push') {
             steps {
                 container('tools') {
-                    sshagent(credentials: ['ssh-private-key']) {
+                    // sshUserPrivateKey binding (SSH Credentials Plugin):
+                    //   - keyFileVariable  : đường dẫn file tạm chứa private key
+                    //   - usernameVariable : username của credential ("ssh-private-key")
+                    // Jenkins tự xóa file tạm sau khi ra khỏi withCredentials block.
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId  : 'ssh-private-key',
+                        keyFileVariable: 'SSH_KEY_FILE',
+                        usernameVariable: 'SSH_USERNAME'
+                    )]) {
                         script {
-                            echo ">>> [GitOps] Cập nhật images.tag=${IMAGE_TAG} vào values.yaml và push lên Git..."
+                            // Đọc danh sách service đã được build từ Stage 7
+                            def builtServices = env.BUILT_SERVICES
+                                ? env.BUILT_SERVICES.split(',').toList()
+                                : []
+
+                            if (builtServices.isEmpty()) {
+                                echo ">>> [GitOps] Không có service nào được build/push trong pipeline này. Bỏ qua cập nhật values.yaml."
+                                return
+                            }
+
+                            echo ">>> [GitOps] Sẽ cập nhật tag=${IMAGE_TAG} cho các service: ${builtServices.join(', ')}"
+
+                            // Mapping tên service (lowercase, liền) → YAML key trong values.yaml
+                            // Phản ánh đúng cấu trúc values.yaml mới: mỗi service có tag riêng.
+                            def serviceToYamlKey = [
+                                'adservice'            : 'adService',
+                                'cartservice'          : 'cartService',
+                                'checkoutservice'      : 'checkoutService',
+                                'currencyservice'      : 'currencyService',
+                                'emailservice'         : 'emailService',
+                                'frontend'             : 'frontend',
+                                'productcatalogservice': 'productCatalogService',
+                                'recommendationservice': 'recommendationService',
+                                'shippingservice'      : 'shippingService',
+                            ]
+
+                            // Sinh lệnh yq cho từng service đã build
+                            // Ví dụ: yq e '.adService.tag = "abc1234"' -i values.yaml
+                            def yqUpdateCmds = builtServices.collect { svc ->
+                                def yamlKey = serviceToYamlKey[svc]
+                                if (yamlKey) {
+                                    return "yq e '.${yamlKey}.tag = \"${IMAGE_TAG}\"' -i helm-chart/microservices/values.yaml"
+                                } else {
+                                    return "echo '>>> CẢNH BÁO: Không tìm thấy YAML key cho service \"${svc}\", bỏ qua.'"
+                                }
+                            }.join('\n                                ')
+
+                            // Sinh lệnh kiểm tra kết quả sau update
+                            def yqVerifyCmds = builtServices.collect { svc ->
+                                def yamlKey = serviceToYamlKey[svc]
+                                yamlKey
+                                    ? "echo \"  ${svc}: \$(yq e '.${yamlKey}.tag' helm-chart/microservices/values.yaml)\""
+                                    : ""
+                            }.findAll { it }.join('\n                                ')
+
+                            def servicesList = builtServices.join(', ')
 
                             sh """
-                                # Cài yq nếu chưa có (dùng để update YAML chính xác)
+                                # ── Cài yq nếu chưa có ───────────────────────────────────────────
                                 if ! which yq > /dev/null 2>&1; then
                                     echo '>>> Cài đặt yq...'
                                     wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
                                     chmod +x /usr/local/bin/yq
                                 fi
 
-                                # Cấu hình git identity
+                                # ── Cấu hình SSH từ key file được Jenkins inject ──────────────────
+                                # SSH_KEY_FILE: đường dẫn file tạm do withCredentials tạo ra,
+                                # chứa nội dung private key. Copy sang ~/.ssh/id_rsa để git dùng.
+                                mkdir -p ~/.ssh
+                                cp "\${SSH_KEY_FILE}" ~/.ssh/id_rsa
+                                chmod 600 ~/.ssh/id_rsa
+
+                                # Thêm github.com vào known_hosts (tắt strict host checking lần đầu)
+                                ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+                                # Ép git dùng đúng key file này cho mọi lệnh SSH trong bước này
+                                export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+
+                                # ── Cấu hình git identity ────────────────────────────────────────
                                 git config user.name  "${GIT_USER_NAME}"
                                 git config user.email "${GIT_USER_EMAIL}"
 
-                                # Thêm GitHub vào known_hosts để tránh SSH host verification prompt
-                                mkdir -p ~/.ssh
-                                ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
+                                # ── Đảm bảo remote dùng SSH URL ──────────────────────────────────
+                                # checkout scm có thể đã set remote là HTTPS URL.
+                                # Convert sang SSH URL để git push dùng được key vừa cấu hình.
+                                CURRENT_REMOTE=\$(git remote get-url origin)
+                                SSH_REMOTE=\$(echo "\${CURRENT_REMOTE}" \\
+                                    | sed 's|https://github.com/|git@github.com:|' \\
+                                    | sed 's|http://github.com/|git@github.com:|')
+                                echo ">>> Remote URL (SSH): \${SSH_REMOTE}"
 
-                                # Cập nhật images.tag trong values.yaml bằng yq
-                                # yq đảm bảo chỉ thay đúng field, không làm hỏng cấu trúc YAML
-                                yq e '.images.tag = "${IMAGE_TAG}"' -i helm-chart/microservices/values.yaml
+                                # ── Cập nhật tag từng service đã build trong values.yaml ─────────
+                                # Mỗi lệnh yq bên dưới chỉ thay tag của đúng service đó,
+                                # các service khác giữ nguyên tag cũ.
+                                ${yqUpdateCmds}
 
-                                echo '>>> Nội dung images section sau khi cập nhật:'
-                                yq e '.images' helm-chart/microservices/values.yaml
+                                echo '>>> Tags sau khi cập nhật:'
+                                ${yqVerifyCmds}
 
-                                # Stage và commit thay đổi
+                                # ── Stage & commit ───────────────────────────────────────────────
                                 git add helm-chart/microservices/values.yaml
 
-                                # Chỉ commit nếu có thay đổi thực sự
                                 if git diff --cached --quiet; then
-                                    echo '>>> values.yaml không có thay đổi (tag đã là ${IMAGE_TAG}), bỏ qua commit.'
+                                    echo '>>> values.yaml không có thay đổi (tất cả tag đã là ${IMAGE_TAG}), bỏ qua commit.'
                                 else
-                                    git commit -m "ci: update image tag to ${IMAGE_TAG} [skip ci]"
+                                    git commit -m "ci: update image tag to ${IMAGE_TAG} for [${servicesList}] [skip ci]"
 
-                                    # Push lên Git qua SSH (sshagent đã inject SSH key)
-                                    SSH_REPO_URL=\$(git remote get-url origin | sed 's|https://github.com/|git@github.com:|')
-                                    git push \${SSH_REPO_URL} HEAD:${env.GIT_BRANCH_NAME}
+                                    # Push qua SSH — GIT_SSH_COMMAND đã trỏ đúng key
+                                    git push "\${SSH_REMOTE}" HEAD:${env.GIT_BRANCH_NAME}
 
-                                    echo '>>> [GitOps] Đã push values.yaml với tag ${IMAGE_TAG} lên Git.'
+                                    echo '>>> [GitOps] Đã push values.yaml lên Git thành công.'
                                     echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và sync app ${ARGOCD_APP_NAME}.'
                                 fi
+
+                                # ── Dọn dẹp key tạm ─────────────────────────────────────────────
+                                rm -f ~/.ssh/id_rsa
                             """
                         }
                     }

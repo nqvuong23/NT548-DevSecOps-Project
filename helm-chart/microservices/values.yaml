@@ -18,8 +18,6 @@
 
 images:
   repository: harbor.vuongdevops.io.vn/devsecops_nhom10
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "1b0cce0"
 imagePullSecrets:
   name: harbor-pull-secret
 serviceAccounts:
@@ -45,6 +43,7 @@ opentelemetryCollector:
   # observation/otel-agent and observation/otel-gateway collector topology.
   create: false
   name: opentelemetrycollector
+  tag: "1b0cce0"
   endpoint: "$(NODE_IP):4317"
   useNodeIp: true
   # Specifies the project id for the otel collector. If set as "PROJECT_ID" (default value), an initContainer will automatically retrieve the project id value from the metadata server.
@@ -76,6 +75,7 @@ securityContext:
 adService:
   create: true
   name: adservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 200m
@@ -86,6 +86,7 @@ adService:
 cartService:
   create: true
   name: cartservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 200m
@@ -96,6 +97,7 @@ cartService:
 checkoutService:
   create: true
   name: checkoutservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -106,6 +108,7 @@ checkoutService:
 currencyService:
   create: true
   name: currencyservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -116,6 +119,7 @@ currencyService:
 emailService:
   create: true
   name: emailservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -126,6 +130,7 @@ emailService:
 frontend:
   create: true
   name: frontend
+  tag: "1b0cce0"
   externalService: false
   cymbalBranding: false
   # One of: local, gcp, aws, azure, onprem, alibaba. When not set, defaults to "local" unless running in GKE, otherwise auto-sets to gcp.
@@ -150,6 +155,7 @@ frontend:
 loadGenerator:
   create: false
   name: loadgenerator
+  tag: "1b0cce0"
   checkFrontendInitContainer: true
   resources:
     requests:
@@ -161,6 +167,7 @@ loadGenerator:
 paymentService:
   create: false
   name: paymentservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -171,6 +178,7 @@ paymentService:
 productCatalogService:
   create: true
   name: productcatalogservice
+  tag: "1b0cce0"
   # Specifies an extra latency to any request on productcatalogservice, by default no extra latency.
   extraLatency: ""
   resources:
@@ -183,6 +191,7 @@ productCatalogService:
 recommendationService:
   create: true
   name: recommendationservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -193,6 +202,7 @@ recommendationService:
 shippingService:
   create: true
   name: shippingservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -220,3 +230,4 @@ cartDatabase:
 shoppingAssistantService:
   create: false
   name: shoppingassistantservice
+  tag: "1b0cce0"
