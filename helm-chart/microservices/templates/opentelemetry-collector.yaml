@@ -84,6 +84,8 @@ spec:
         - name: collector-gateway-config
           mountPath: /conf
       {{- end }}
+      imagePullSecrets:
+      - name: {{ .Values.imagePullSecrets.name }}
       containers:
       # This gateway container will receive traces and metrics from each microservice
       # and forward it to GCP

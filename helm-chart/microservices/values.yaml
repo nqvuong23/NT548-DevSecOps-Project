@@ -21,7 +21,7 @@ images:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "1b0cce0"
 imagePullSecrets:
-  - name: harbor-pull-secret
+  name: harbor-pull-secret
 serviceAccounts:
   # Specifies whether service accounts should be created.
   create: true
@@ -159,7 +159,7 @@ loadGenerator:
       cpu: 500m
       memory: 512Mi
 paymentService:
-  create: true
+  create: false
   name: paymentservice
   resources:
     requests:
