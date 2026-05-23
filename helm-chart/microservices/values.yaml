@@ -19,7 +19,7 @@
 images:
   repository: harbor.vuongdevops.io.vn/devsecops_nhom10
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "d77cd8c"
+  tag: "1b0cce0"
 imagePullSecrets:
   - name: harbor-pull-secret
 serviceAccounts:

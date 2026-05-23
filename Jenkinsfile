@@ -526,15 +526,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
         stage('GitOps - Update Image Tag & Push') {
             steps {
                 container('tools') {
-                    withVault(vaultSecrets: [
-                        [
-                            path: 'devsecops_nhom10_kv/github',
-                            engineVersion: 2,
-                            secretValues: [
-                                [envVar: 'GIT_TOKEN', vaultKey: 'token']
-                            ]
-                        ]
-                    ]) {
+                    sshagent(credentials: ['ssh-private-key']) {
                         script {
                             echo ">>> [GitOps] Cập nhật images.tag=${IMAGE_TAG} vào values.yaml và push lên Git..."
 
@@ -549,6 +541,10 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 # Cấu hình git identity
                                 git config user.name  "${GIT_USER_NAME}"
                                 git config user.email "${GIT_USER_EMAIL}"
+
+                                # Thêm GitHub vào known_hosts để tránh SSH host verification prompt
+                                mkdir -p ~/.ssh
+                                ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
 
                                 # Cập nhật images.tag trong values.yaml bằng yq
                                 # yq đảm bảo chỉ thay đúng field, không làm hỏng cấu trúc YAML
@@ -566,9 +562,9 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 else
                                     git commit -m "ci: update image tag to ${IMAGE_TAG} [skip ci]"
 
-                                    # Push lên Git bằng token (HTTPS)
-                                    REPO_URL=\$(git remote get-url origin | sed 's|https://|https://${GIT_TOKEN}@|')
-                                    git push \${REPO_URL} HEAD:${env.GIT_BRANCH_NAME}
+                                    # Push lên Git qua SSH (sshagent đã inject SSH key)
+                                    SSH_REPO_URL=\$(git remote get-url origin | sed 's|https://github.com/|git@github.com:|')
+                                    git push \${SSH_REPO_URL} HEAD:${env.GIT_BRANCH_NAME}
 
                                     echo '>>> [GitOps] Đã push values.yaml với tag ${IMAGE_TAG} lên Git.'
                                     echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và sync app ${ARGOCD_APP_NAME}.'
