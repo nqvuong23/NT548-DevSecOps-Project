@@ -413,8 +413,6 @@ echo '>>> Building & Pushing: ${imageFull}'
   --destination  ${imageLatest} \\
   --cache=true \\
   --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache
-  --cleanup \
-  --whitelist-var-run=false
 echo '>>> Kaniko đã build và push thành công: ${imageFull}'
 """
                                 } else {
