@@ -20,7 +20,7 @@ import grpc
 
 import demo_pb2 as demo__pb2
 
-
+ 
 class CartServiceStub(object):
     """-----------------Cart service-----------------
 
