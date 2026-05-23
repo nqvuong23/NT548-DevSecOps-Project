@@ -17,9 +17,11 @@
 # Declare variables to be passed into your templates.
 
 images:
-  repository: harbor.vuongdevops.io.vn/devsecops
+  repository: harbor.vuongdevops.io.vn/devsecops_nhom10
   # Overrides the image tag whose default is the chart appVersion.
   tag: "d77cd8c"
+imagePullSecrets:
+  - name: harbor-pull-secret
 serviceAccounts:
   # Specifies whether service accounts should be created.
   create: true

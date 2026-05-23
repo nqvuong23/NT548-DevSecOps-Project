@@ -57,6 +57,10 @@ helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add kedacore https://kedacore.github.io/charts
+
+# Nếu dùng...
+helm repo add external-secrets https://charts.external-secrets.io
+
 helm repo update
 ```
 
@@ -78,6 +82,9 @@ gcloud container clusters get-credentials devsecops-gke --zone us-central1-a --p
 ```
 
 ```
+# Deploy External Secret (Nếu dùng)
+helm upgrade --install eso external-secrets/external-secrets -n security --wait --timeout 10m --set installCRDs=true
+
 # Deploy Cert Manager bằng Helm
 cd ../helm-chart/cert-manager
 helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager --namespace security --values ./values.yaml --wait --timeout 10m
@@ -101,7 +108,7 @@ helm upgrade --install vault hashicorp/vault --namespace vault --values ./values
 
 # Deploy ArgoCD bằng Helm
 cd ../argocd
-helm upgrade --install argocd argo/argo-cd -n argocd ---values ./values.yaml --wait --timeout 10m
+helm upgrade --install argocd argo/argo-cd -n argocd --values ./values.yaml --wait --timeout 10m
 
 # Deploy Argo Rollouts bằng Helm
 cd ../argo-rollouts
@@ -149,6 +156,26 @@ kubectl apply -f ./cluster_issuer.yaml
 # Apply Ingress để forward route tới các service thông qua DNS
 cd ../ingress-nginx
 kubectl apply -f ./ingress.yaml
+
+# Apply application and secret for ArgoCD
+cd ../argocd
+kubectl apply -f argo_repo_ssh.yaml 
+kubectl apply -f microservice_app.yaml 
+
+# Tạo secret chứa thông tin login của Harbor
+cd ../eso
+kubectl create secret docker-registry harbor-pull-secret \
+  --namespace app \
+  --docker-server=harbor.vuongdevops.io.vn \
+  --docker-username='admin' \
+  --docker-password='admin' \
+  --dry-run=client -o yaml > harbor-auth.yaml
+kubectl apply -f harbor-auth.yaml
+
+# Apply External Secrets (nếu dùng)
+kubectl apply -f eso_sa.yaml
+kubectl apply -f vault_store.yaml
+kubectl apply -f harbor_external.yaml
 ```
 
 ---
@@ -170,9 +197,10 @@ terraform destroy -target=module.iam -target=module.networking -target=module.gk
 - Microservice Web URL : https://app.vuongdevops.io.vn 
 - Jenkins URL          : https://jenkins.vuongdevops.io.vn 
 - Sonarqueue URL       : https://sonarqube.vuongdevops.io.vn 
-- Argocd URL           : https://argocd.vuongdevops.io.vn 
 - Harbor URL           : https://harbor.vuongdevops.io.vn 
-- Grafana URL          : https://grafana.vuongdevops.io.vn 
 - Hashicorp Vault URL  : https://vault.vuongdevops.io.vn 
+- Argocd URL           : https://argocd.vuongdevops.io.vn 
+- Argo Rollouts URL    : https://argorollouts.vuongdevops.io.vn 
+- DefectDojo URL       : https://defectdojo.vuongdevops.io.vn 
+- Grafana URL          : https://grafana.vuongdevops.io.vn 
 - Jaeger URL           : https://jaeger.vuongdevops.io.vn 
-

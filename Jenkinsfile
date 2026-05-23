@@ -165,7 +165,7 @@ spec:
                 container('sonar-scanner') {
                     withVault(vaultSecrets: [
                         [
-                            path: 'devsecops_nhom10/sonarqube',
+                            path: 'devsecops_nhom10_kv/sonarqube',
                             engineVersion: 2,
                             secretValues: [
                                 [envVar: 'SONAR_TOKEN', vaultKey: 'token']
@@ -191,7 +191,7 @@ spec:
                 container('sonar-scanner') {
                     withVault(vaultSecrets: [
                         [
-                            path: 'devsecops_nhom10/sonarqube',
+                            path: 'devsecops_nhom10_kv/sonarqube',
                             engineVersion: 2,
                             secretValues: [
                                 [envVar: 'SONAR_TOKEN', vaultKey: 'token']
@@ -324,7 +324,7 @@ spec:
                 container('tools') {
                     withVault(vaultSecrets: [
                         [
-                            path: 'devsecops_nhom10/harbor',
+                            path: 'devsecops_nhom10_kv/harbor',
                             engineVersion: 2,
                             secretValues: [
                                 [envVar: 'HARBOR_USER', vaultKey: 'username'],
@@ -430,7 +430,7 @@ EOF
                 container('trivy') {
                     withVault(vaultSecrets: [
                         [
-                            path: 'devsecops_nhom10/harbor',
+                            path: 'devsecops_nhom10_kv/harbor',
                             engineVersion: 2,
                             secretValues: [
                                 [envVar: 'HARBOR_USER', vaultKey: 'username'],
@@ -507,7 +507,7 @@ EOF
                 container('tools') {
                     withVault(vaultSecrets: [
                         [
-                            path: 'devsecops_nhom10/argocd',
+                            path: 'devsecops_nhom10_kv/argocd',
                             engineVersion: 2,
                             secretValues: [
                                 [envVar: 'ARGOCD_AUTH_TOKEN', vaultKey: 'token']

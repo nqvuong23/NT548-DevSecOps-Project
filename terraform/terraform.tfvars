@@ -18,6 +18,7 @@ dns_subdomains = [
   "jenkins",
   "sonarqube",
   "argocd",
+  "argorollouts",
   "harbor",
   "grafana",
   "defectdojo",

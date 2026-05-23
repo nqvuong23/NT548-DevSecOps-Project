@@ -76,7 +76,7 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
 
 - **Bước 1**: Ở menu chính, chọn **Secrets Engines** > Nhấn **Enable new engine**.
 - **Bước 2**: Chọn **KV** (Key-Value).
-- **Bước 3**: Ở ô Path, nhập tên secret engine `devsecops_nhom10` > Chọn Version 2 > Nhấn **Enable Engine**.
+- **Bước 3**: Ở ô Path, nhập tên secret engine `devsecops_nhom10_kv` > Chọn Version 2 > Nhấn **Enable Engine**.
 - **Bước 4** (Tạo các secret): Nhấn vào secret engine vừa tạo > Chọn **Create secret** và tạo lần lượt các secrets sau:
   - Path = `sonarqube`: Key = `token` - Value = `<token lấy được khi tạo bên SonarQube Web UI>`
   - Path = `harbor`: Key = `username` - Value = `<Name của Harbor Robot Account>`, Key = `password` - Value = `<Secret của Harbor Robot Account>` 
@@ -91,6 +91,7 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
 2. Nhấn nút **Enable new method**.
 3. Tìm và chọn **AppRole** trong danh sách.
 4. Ở ô **Path**, Vault sẽ tự điền là approle (cứ để mặc định) > Nhấn **Enable Method**.
+5. Tiếp tục Enable cho Kubernetes (nếu dùng)
 
 ---
 
@@ -103,13 +104,13 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
   - Policy: Copy và dán đoạn code phân quyền phía dưới vào khung cấu hình
 
 ```
-path "devsecops_nhom10/data/sonarqube" {
+path "devsecops_nhom10_kv/data/sonarqube" {
   capabilities = ["read"]
 }
-path "devsecops_nhom10/data/harbor" {
+path "devsecops_nhom10_kv/data/harbor" {
   capabilities = ["read"]
 }
-path "devsecops_nhom10/data/argocd" {
+path "devsecops_nhom10_kv/data/argocd" {
   capabilities = ["read"]
 }
 ```
@@ -121,11 +122,14 @@ path "devsecops_nhom10/data/argocd" {
 ### Tạo và cấu hình AppRole cho Jenkins
 
 1. Trên góc trên bên trái của menu chính, nhấn vào biểu tượng CLI.
-2. Copy và paste lệnh sau vào cái ô đen đó rồi nhấn Enter:
+2. Copy và paste các lệnh sau vào cái ô đen đó rồi nhấn Enter:
 
 ```
 # Tạo Role tên jenkins-role và gắn policy jenkins-policy vào
 vault write auth/approle/role/jenkins-role token_policies="jenkins-policy"
+
+# Tạo Role tên eso-role và gắn policy jenkins-policy vào (nếu dùng)
+vault write auth/kubernetes/role/eso-role bound_service_account_names=eso-vault-sa bound_service_account_namespaces=app policies=jenkins-policy 
 ```
 
 ---

@@ -97,10 +97,10 @@ metadata:
 
 spec:
   ingressClassName: nginx
-  # tls:
-  # - hosts:
-  #   - app.vuongdevops.io.vn
-  #   secretName: app-tls-secret
+  tls:
+  - hosts:
+    - app.vuongdevops.io.vn
+    secretName: app-tls-secret
   rules:
     - host: app.vuongdevops.io.vn
       http:

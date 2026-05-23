@@ -4,7 +4,7 @@ plugins {
     id 'idea'
     id 'application'
 }
-
+ 
 repositories {
     mavenCentral()
     mavenLocal()

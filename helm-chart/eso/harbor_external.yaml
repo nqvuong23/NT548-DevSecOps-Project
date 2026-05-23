@@ -1,0 +1,38 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: harbor-pull-secret-sync
+  namespace: app
+spec:
+  refreshInterval: "1h" # Tự động quét lại Vault sau mỗi 1 tiếng để cập nhật nếu Token thay đổi
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  
+  # Cấu hình định dạng Secret ĐẦU RA (Kubernetes Secret)
+  target:
+    name: harbor-pull-secret # Đây sẽ là tên K8s Secret sinh ra để điền vào values.yaml của Helm
+    template:
+      type: kubernetes.io/dockerconfigjson
+      # Định dạng chuẩn json cấu hình docker-registry mà K8s yêu cầu
+      data:
+        .dockerconfigjson: |
+          {
+            "auths": {
+              "harbor.vuongdevops.io.vn": {
+                "username": "{{ .username }}",
+                "password": "{{ .password }}"
+              }
+            }
+          }
+
+  # Cấu hình nguồn ĐẦU VÀO (Lấy từ Vault)
+  data:
+    - secretKey: username
+      remoteRef:
+        key: harbor
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: harbor
+        property: password

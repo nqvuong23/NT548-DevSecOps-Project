@@ -42,9 +42,15 @@ dashboard:
     enabled: true
     ingressClassName: nginx
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
     hosts:
       - argorollouts.vuongdevops.io.vn
     paths:
       - /
     pathType: Prefix
+    tls: 
+    - secretName: argorollouts-tls-secret
+      hosts:
+      - argorollouts.vuongdevops.io.vn
