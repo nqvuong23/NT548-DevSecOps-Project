@@ -577,18 +577,22 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                             def servicesList = builtServices.join(', ')
 
                             sh """
-                                # ── FIX LỖI 127: Cài đặt git và openssh-client cho Alpine ────────
+                                # ── 1. Cài đặt git và openssh-client cho Alpine ──────────────────
                                 echo '>>> Đang chuẩn bị môi trường hệ thống (Cài git & openssh)...'
                                 apk add --no-cache git openssh-client
 
-                                # ── Cài yq nếu chưa có ───────────────────────────────────────────
+                                # ── 2. FIX LỖI 128: Ép vào đúng Workspace và tắt cơ chế chặn quyền của Git ──
+                                cd "${WORKSPACE}"
+                                git config --global --add safe.directory '*'
+
+                                # ── 3. Cài yq nếu chưa có ───────────────────────────────────────────
                                 if ! which yq > /dev/null 2>&1; then
                                     echo '>>> Cài đặt yq...'
                                     wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
                                     chmod +x /usr/local/bin/yq
                                 fi
 
-                                # ── Cấu hình SSH từ key file được Jenkins inject ──────────────────
+                                # ── 4. Cấu hình SSH từ key file được Jenkins inject ──────────────────
                                 mkdir -p ~/.ssh
                                 cp "\${SSH_KEY_FILE}" ~/.ssh/id_rsa
                                 chmod 600 ~/.ssh/id_rsa
@@ -599,24 +603,24 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 # Ép git dùng đúng key file này cho mọi lệnh SSH
                                 export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
 
-                                # ── Cấu hình git identity ────────────────────────────────────────
-                                git config user.name  "${GIT_USER_NAME}"
-                                git config user.email "${GIT_USER_EMAIL}"
+                                # ── 5. Cấu hình git identity (Đã thêm cờ --global) ──────────────────
+                                git config --global user.name  "${GIT_USER_NAME}"
+                                git config --global user.email "${GIT_USER_EMAIL}"
 
-                                # ── Đảm bảo remote dùng SSH URL ──────────────────────────────────
+                                # ── 6. Đảm bảo remote dùng SSH URL ──────────────────────────────────
                                 CURRENT_REMOTE=\$(git remote get-url origin)
                                 SSH_REMOTE=\$(echo "\${CURRENT_REMOTE}" \\
                                     | sed 's|https://github.com/|git@github.com:|' \\
                                     | sed 's|http://github.com/|git@github.com:|')
                                 echo ">>> Remote URL (SSH): \${SSH_REMOTE}"
 
-                                # ── Cập nhật tag từng service đã build trong values.yaml ─────────
+                                # ── 7. Cập nhật tag từng service đã build trong values.yaml ─────────
                                 ${yqUpdateCmds}
 
                                 echo '>>> Tags sau khi cập nhật:'
                                 ${yqVerifyCmds}
 
-                                # ── Stage & commit ───────────────────────────────────────────────
+                                # ── 8. Stage & commit ───────────────────────────────────────────────
                                 git add helm-chart/microservices/values.yaml
 
                                 if git diff --cached --quiet; then
@@ -631,7 +635,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                     echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và tiến hành sync.'
                                 fi
 
-                                # ── Dọn dẹp an toàn ─────────────────────────────────────────────
+                                # ── 9. Dọn dẹp an toàn ─────────────────────────────────────────────
                                 rm -f ~/.ssh/id_rsa
                             """
                         }
