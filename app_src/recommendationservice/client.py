@@ -18,7 +18,7 @@ import sys
 import grpc
 import demo_pb2
 import demo_pb2_grpc
-
+ 
 from logger import getJSONLogger
 logger = getJSONLogger('recommendationservice-server')
 

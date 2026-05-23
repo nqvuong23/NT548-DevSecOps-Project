@@ -61,7 +61,7 @@ vectorstore = AlloyDBVectorStore.create_sync(
 
 def create_app():
     app = Flask(__name__)
-
+ 
     @app.route("/", methods=['POST'])
     def talkToGemini():
         print("Beginning RAG call")

@@ -9,7 +9,7 @@ brotli==1.2.0
 certifi==2025.8.3
     # via
     #   geventhttpclient
-    #   requests
+    #   requests 
 charset-normalizer==3.4.3
     # via requests
 click==8.3.0
