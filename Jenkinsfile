@@ -413,7 +413,6 @@ echo '>>> Building & Pushing: ${imageFull}'
   --destination  ${imageLatest} \\
   --cache=true \\
   --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache_v3 \\
-  --snapshotMode=redo
 echo '>>> Kaniko đã build và push thành công: ${imageFull}'
 """
                                 } else {
