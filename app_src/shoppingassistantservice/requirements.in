@@ -4,3 +4,4 @@ langchain==1.2.0
 pillow==12.1.1 
 langchain-google-alloydb-pg==0.13.0
 google-cloud-secret-manager==2.26.0
+ 
