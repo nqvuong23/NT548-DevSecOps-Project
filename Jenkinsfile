@@ -384,7 +384,6 @@ EOF
                             'currencyservice',
                             'emailservice',
                             'frontend',
-                            'paymentservice',
                             'productcatalogservice',
                             'recommendationservice',
                             'shippingservice'
@@ -412,7 +411,7 @@ echo '>>> Building & Pushing: ${imageFull}'
   --destination  ${imageFull} \\
   --destination  ${imageLatest} \\
   --cache=true \\
-  --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache_v3 \\
+  --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache_v3 
 echo '>>> Kaniko đã build và push thành công: ${imageFull}'
 """
                                 } else {

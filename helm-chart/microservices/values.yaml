@@ -148,7 +148,7 @@ frontend:
       cpu: 200m
       memory: 128Mi
 loadGenerator:
-  create: true
+  create: false
   name: loadgenerator
   checkFrontendInitContainer: true
   resources:
