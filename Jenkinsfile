@@ -522,41 +522,10 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
 
         // =====================================================================
         // STAGE 9: GitOps - Update values.yaml & Trigger ArgoCD Auto-Sync
-        //
-        // Chuẩn GitOps: Jenkins chỉ cập nhật tag của từng service đã build
-        // trong helm-chart/microservices/values.yaml và push commit lên Git.
-        // ArgoCD tự động phát hiện thay đổi qua automated sync policy và sync.
-        //
-        // Cơ chế xác thực SSH:
-        //   - Dùng withCredentials + sshUserPrivateKey binding (SSH Credentials
-        //     Plugin — đã có sẵn, KHÔNG cần SSH Agent Plugin).
-        //   - Jenkins ghi private key ra file tạm (SSH_KEY_FILE), pipeline tự
-        //     cấu hình ~/.ssh/id_rsa và GIT_SSH_COMMAND để git dùng đúng key.
-        //   - Credential ID: "ssh-private-key" (loại "SSH Username with private
-        //     key", username: "ssh-private-key").
-        //   - Push qua SSH URL: git@github.com:<owner>/<repo>.git
-        //     (convert từ HTTPS remote URL của checkout scm nếu cần).
-        //
-        // Cơ chế cập nhật tag:
-        //   - Chỉ cập nhật tag của service nào thực sự được build & push
-        //     (dựa vào env.BUILT_SERVICES từ Stage 7). Các service không thay
-        //     đổi giữ nguyên tag cũ — đúng với cấu trúc values.yaml mới (mỗi
-        //     service có tag riêng thay vì dùng chung images.tag).
-        //   - Nếu không có service nào được build, stage kết thúc sớm (no-op).
-        //
-        // Lợi ích:
-        //   - Không cần lưu ArgoCD token trong Vault/Jenkins.
-        //   - Lịch sử Git là audit trail đầy đủ của mọi lần deploy.
-        //   - Đúng chuẩn GitOps: Git là source of truth duy nhất.
-        //   - Granular tag update: rollback từng service độc lập.
         // =====================================================================
         stage('GitOps - Update Image Tag & Push') {
             steps {
                 container('tools') {
-                    // sshUserPrivateKey binding (SSH Credentials Plugin):
-                    //   - keyFileVariable  : đường dẫn file tạm chứa private key
-                    //   - usernameVariable : username của credential ("ssh-private-key")
-                    // Jenkins tự xóa file tạm sau khi ra khỏi withCredentials block.
                     withCredentials([sshUserPrivateKey(
                         credentialsId  : 'ssh-private-key',
                         keyFileVariable: 'SSH_KEY_FILE',
@@ -576,41 +545,42 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                             echo ">>> [GitOps] Sẽ cập nhật tag=${IMAGE_TAG} cho các service: ${builtServices.join(', ')}"
 
                             // Mapping tên service (lowercase, liền) → YAML key trong values.yaml
-                            // Phản ánh đúng cấu trúc values.yaml mới: mỗi service có tag riêng.
                             def serviceToYamlKey = [
-                                'adservice'            : 'adService',
-                                'cartservice'          : 'cartService',
-                                'checkoutservice'      : 'checkoutService',
-                                'currencyservice'      : 'currencyService',
-                                'emailservice'         : 'emailService',
-                                'frontend'             : 'frontend',
+                                'adservice'             : 'adService',
+                                'cartservice'           : 'cartService',
+                                'checkoutservice'       : 'checkoutService',
+                                'currencyservice'       : 'currencyService',
+                                'emailservice'          : 'emailService',
+                                'frontend'              : 'frontend',
                                 'productcatalogservice': 'productCatalogService',
                                 'recommendationservice': 'recommendationService',
                                 'shippingservice'      : 'shippingService',
                             ]
 
-                            // Sinh lệnh yq cho từng service đã build
-                            // Ví dụ: yq e '.adService.tag = "abc1234"' -i values.yaml
+                            // Chuẩn hóa cú pháp yq v4 (bỏ chữ 'e' thừa để tránh xung đột phiên bản mới)
                             def yqUpdateCmds = builtServices.collect { svc ->
                                 def yamlKey = serviceToYamlKey[svc]
                                 if (yamlKey) {
-                                    return "yq e '.${yamlKey}.tag = \"${IMAGE_TAG}\"' -i helm-chart/microservices/values.yaml"
+                                    return "yq -i '.${yamlKey}.tag = \"${IMAGE_TAG}\"' helm-chart/microservices/values.yaml"
                                 } else {
                                     return "echo '>>> CẢNH BÁO: Không tìm thấy YAML key cho service \"${svc}\", bỏ qua.'"
                                 }
                             }.join('\n                                ')
 
-                            // Sinh lệnh kiểm tra kết quả sau update
                             def yqVerifyCmds = builtServices.collect { svc ->
                                 def yamlKey = serviceToYamlKey[svc]
                                 yamlKey
-                                    ? "echo \"  ${svc}: \$(yq e '.${yamlKey}.tag' helm-chart/microservices/values.yaml)\""
+                                    ? "echo \"  ${svc}: \$(yq '.${yamlKey}.tag' helm-chart/microservices/values.yaml)\""
                                     : ""
                             }.findAll { it }.join('\n                                ')
 
                             def servicesList = builtServices.join(', ')
 
                             sh """
+                                # ── FIX LỖI 127: Cài đặt git và openssh-client cho Alpine ────────
+                                echo '>>> Đang chuẩn bị môi trường hệ thống (Cài git & openssh)...'
+                                apk add --no-cache git openssh-client
+
                                 # ── Cài yq nếu chưa có ───────────────────────────────────────────
                                 if ! which yq > /dev/null 2>&1; then
                                     echo '>>> Cài đặt yq...'
@@ -619,16 +589,14 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 fi
 
                                 # ── Cấu hình SSH từ key file được Jenkins inject ──────────────────
-                                # SSH_KEY_FILE: đường dẫn file tạm do withCredentials tạo ra,
-                                # chứa nội dung private key. Copy sang ~/.ssh/id_rsa để git dùng.
                                 mkdir -p ~/.ssh
                                 cp "\${SSH_KEY_FILE}" ~/.ssh/id_rsa
                                 chmod 600 ~/.ssh/id_rsa
 
-                                # Thêm github.com vào known_hosts (tắt strict host checking lần đầu)
+                                # Thêm github.com vào known_hosts để không bị treo hỏi Yes/No
                                 ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-                                # Ép git dùng đúng key file này cho mọi lệnh SSH trong bước này
+                                # Ép git dùng đúng key file này cho mọi lệnh SSH
                                 export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
 
                                 # ── Cấu hình git identity ────────────────────────────────────────
@@ -636,8 +604,6 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 git config user.email "${GIT_USER_EMAIL}"
 
                                 # ── Đảm bảo remote dùng SSH URL ──────────────────────────────────
-                                # checkout scm có thể đã set remote là HTTPS URL.
-                                # Convert sang SSH URL để git push dùng được key vừa cấu hình.
                                 CURRENT_REMOTE=\$(git remote get-url origin)
                                 SSH_REMOTE=\$(echo "\${CURRENT_REMOTE}" \\
                                     | sed 's|https://github.com/|git@github.com:|' \\
@@ -645,8 +611,6 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 echo ">>> Remote URL (SSH): \${SSH_REMOTE}"
 
                                 # ── Cập nhật tag từng service đã build trong values.yaml ─────────
-                                # Mỗi lệnh yq bên dưới chỉ thay tag của đúng service đó,
-                                # các service khác giữ nguyên tag cũ.
                                 ${yqUpdateCmds}
 
                                 echo '>>> Tags sau khi cập nhật:'
@@ -656,18 +620,18 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 git add helm-chart/microservices/values.yaml
 
                                 if git diff --cached --quiet; then
-                                    echo '>>> values.yaml không có thay đổi (tất cả tag đã là ${IMAGE_TAG}), bỏ qua commit.'
+                                    echo '>>> values.yaml không có thay đổi (tất cả tag đã trùng khớp), bỏ qua commit.'
                                 else
                                     git commit -m "ci: update image tag to ${IMAGE_TAG} for [${servicesList}] [skip ci]"
 
-                                    # Push qua SSH — GIT_SSH_COMMAND đã trỏ đúng key
+                                    # Push qua SSH URL sử dụng định danh chính xác của Branch
                                     git push "\${SSH_REMOTE}" HEAD:${env.GIT_BRANCH_NAME}
 
                                     echo '>>> [GitOps] Đã push values.yaml lên Git thành công.'
-                                    echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và sync app ${ARGOCD_APP_NAME}.'
+                                    echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và tiến hành sync.'
                                 fi
 
-                                # ── Dọn dẹp key tạm ─────────────────────────────────────────────
+                                # ── Dọn dẹp an toàn ─────────────────────────────────────────────
                                 rm -f ~/.ssh/id_rsa
                             """
                         }
