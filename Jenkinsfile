@@ -532,6 +532,16 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                         usernameVariable: 'SSH_USERNAME'
                     )]) {
                         script {
+                            // ── FIX LỖI DETACHED HEAD: Xác định tên nhánh thực tế ──────────
+                            // Lấy tên nhánh gốc từ Jenkins (ví dụ: origin/main hoặc main)
+                            def rawBranch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'main'
+                            if (rawBranch.contains('/')) {
+                                rawBranch = rawBranch.tokenize('/')[-1]
+                            }
+                            
+                            // Nếu biến cũ bị kẹt chữ 'HEAD', chúng ta ép hệ thống dùng tên nhánh thực tế vừa tìm được
+                            def targetBranch = (env.GIT_BRANCH_NAME == 'HEAD' || !env.GIT_BRANCH_NAME) ? rawBranch : env.GIT_BRANCH_NAME
+                            
                             // Đọc danh sách service đã được build từ Stage 7
                             def builtServices = env.BUILT_SERVICES
                                 ? env.BUILT_SERVICES.split(',').toList()
@@ -542,7 +552,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 return
                             }
 
-                            echo ">>> [GitOps] Sẽ cập nhật tag=${IMAGE_TAG} cho các service: ${builtServices.join(', ')}"
+                            echo ">>> [GitOps] Sẽ cập nhật tag=${IMAGE_TAG} cho các service: ${builtServices.join(', ')} trên nhánh [${targetBranch}]"
 
                             // Mapping tên service (lowercase, liền) → YAML key trong values.yaml
                             def serviceToYamlKey = [
@@ -557,7 +567,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 'shippingservice'      : 'shippingService',
                             ]
 
-                            // Chuẩn hóa cú pháp yq v4 (bỏ chữ 'e' thừa để tránh xung đột phiên bản mới)
+                            // Sinh lệnh yq
                             def yqUpdateCmds = builtServices.collect { svc ->
                                 def yamlKey = serviceToYamlKey[svc]
                                 if (yamlKey) {
@@ -581,7 +591,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 echo '>>> Đang chuẩn bị môi trường hệ thống (Cài git & openssh)...'
                                 apk add --no-cache git openssh-client
 
-                                # ── 2. FIX LỖI 128: Ép vào đúng Workspace và tắt cơ chế chặn quyền của Git ──
+                                # ── 2. Đảm bảo đứng đúng Workspace và cấu hình Thư mục an toàn ──
                                 cd "${WORKSPACE}"
                                 git config --global --add safe.directory '*'
 
@@ -603,7 +613,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 # Ép git dùng đúng key file này cho mọi lệnh SSH
                                 export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
 
-                                # ── 5. Cấu hình git identity (Đã thêm cờ --global) ──────────────────
+                                # ── 5. Cấu hình git identity ────────────────────────────────────────
                                 git config --global user.name  "${GIT_USER_NAME}"
                                 git config --global user.email "${GIT_USER_EMAIL}"
 
@@ -628,8 +638,9 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 else
                                     git commit -m "ci: update image tag to ${IMAGE_TAG} for [${servicesList}] [skip ci]"
 
-                                    # Push qua SSH URL sử dụng định danh chính xác của Branch
-                                    git push "\${SSH_REMOTE}" HEAD:${env.GIT_BRANCH_NAME}
+                                    # FIX: Đẩy trực tiếp commit HEAD lên đúng nhánh đích thực tế (ví dụ: main)
+                                    echo ">>> Tiến hành push code lên nhánh: ${targetBranch}"
+                                    git push "\${SSH_REMOTE}" HEAD:${targetBranch}
 
                                     echo '>>> [GitOps] Đã push values.yaml lên Git thành công.'
                                     echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và tiến hành sync.'
