@@ -99,11 +99,15 @@ spec:
           value: "1"
         {{- end }}
         readinessProbe:
+          initialDelaySeconds: 10
           periodSeconds: 5
+          timeoutSeconds: 5
           grpc:
             port: 8080
         livenessProbe:
+          initialDelaySeconds: 10
           periodSeconds: 5
+          timeoutSeconds: 5
           grpc:
             port: 8080
         resources:
