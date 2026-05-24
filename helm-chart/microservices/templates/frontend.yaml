@@ -27,17 +27,42 @@ metadata:
   {{- end }}
 ---
 {{- end }}
+{{- if .Values.frontend.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+{{- else }}
 apiVersion: apps/v1
 kind: Deployment
+{{- end }}
 metadata:
   name: {{ .Values.frontend.name }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Values.frontend.name }}
 spec:
+  {{- if .Values.frontend.rollout.enabled }}
+  replicas: {{ .Values.frontend.rollout.replicas | default 1 }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Values.frontend.name }}
+  {{- if .Values.frontend.rollout.enabled }}
+  strategy:
+    canary:
+      stableService: {{ .Values.frontend.name }}
+      canaryService: {{ .Values.frontend.name }}-canary
+      trafficRouting:
+        nginx:
+          stableIngress: app
+      analysis:
+        templates:
+          - templateName: frontend-success-rate
+        args:
+          - name: service-name
+            value: {{ .Values.frontend.name }}
+      steps:
+        {{- toYaml .Values.frontend.rollout.steps | nindent 8 }}
+  {{- end }}
   template:
     metadata:
       labels:
@@ -157,6 +182,24 @@ spec:
   - name: http
     port: 80
     targetPort: 8080
+{{- if .Values.frontend.rollout.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.frontend.name }}-canary
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.frontend.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.frontend.name }}
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+{{- end }}
 {{- if .Values.frontend.externalService }}
 ---
 apiVersion: v1
