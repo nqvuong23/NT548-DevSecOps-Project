@@ -8,8 +8,8 @@ metadata:
     app.kubernetes.io/part-of: nt548-autoscaling
 spec:
   scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
     name: frontend
   pollingInterval: 15
   cooldownPeriod: 120

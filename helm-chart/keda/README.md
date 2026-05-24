@@ -1,6 +1,6 @@
 # KEDA Autoscaling - Scenario 2
 
-This folder implements README Scenario 2 for traffic-based scaling of the Online Boutique `frontend` Deployment.
+This folder implements README Scenario 2 for traffic-based scaling of the Online Boutique `frontend` Argo Rollout.
 
 Pinned chart:
 
@@ -25,7 +25,7 @@ helm upgrade --install keda kedacore/keda \
   --timeout 10m
 ```
 
-Deploy the scaler after the `frontend` Deployment and ingress-nginx metrics are available:
+Deploy the scaler after the `frontend` Rollout and ingress-nginx metrics are available:
 
 ```bash
 kubectl apply -f helm-chart/keda/scaledobjects/frontend-rps-scaledobject.yaml
@@ -57,6 +57,6 @@ Expected:
 
 - KEDA pods run on nodes labeled `pool=platform`.
 - `frontend-rps-scaler` is ready.
-- KEDA creates `frontend-rps-keda-hpa`.
-- Under load, frontend replicas move from 2 toward 6, then scale down after cooldown.
+- KEDA creates `frontend-rps-keda-hpa` against `argoproj.io/v1alpha1 Rollout/frontend`.
+- Under load, frontend rollout replicas move from 2 toward 6, then scale down after cooldown.
 - The demo threshold is `20` RPS because the current GKE lab cluster reached about 50-65 RPS during k6 validation, while KEDA/HPA samples a lower one-minute value during ramp down.

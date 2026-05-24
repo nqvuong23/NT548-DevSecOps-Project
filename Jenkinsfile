@@ -90,6 +90,14 @@ spec:
         }
     }
 
+    parameters {
+        booleanParam(
+            name: 'BUILD_ALL_IMAGES',
+            defaultValue: true,
+            description: 'Build and push all application images to Harbor so GitOps has a complete image set for the same commit.'
+        )
+    }
+
     // =========================================================================
     // Biến môi trường dùng xuyên suốt pipeline
     // =========================================================================
@@ -105,7 +113,7 @@ spec:
 
         // ArgoCD
         ARGOCD_SERVER      = "argocd.vuongdevops.io.vn"
-        ARGOCD_APP_NAME    = "online-boutique"
+        ARGOCD_APP_NAME    = "online-boutique-application"
 
         // Image tag dùng Git commit SHA (7 ký tự đầu)
         IMAGE_TAG          = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
@@ -384,10 +392,12 @@ EOF
                             'currencyservice',
                             'emailservice',
                             'frontend',
+                            'paymentservice',
                             'productcatalogservice',
                             'recommendationservice',
                             'shippingservice'
                         ]
+                        def buildAllImages = (params.BUILD_ALL_IMAGES == null) ? true : params.BUILD_ALL_IMAGES
 
                         // Xây dựng script shell tổng hợp — tất cả lệnh kaniko
                         // được nối vào một chuỗi và chạy trong một sh() duy nhất.
@@ -402,7 +412,7 @@ EOF
                         services.each { svc ->
                             def dockerfilePath = "app_src/${svc}/Dockerfile"
 
-                            if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
+                            if (buildAllImages || env.CHANGED_FILES.contains("app_src/${svc}")) {
                                 if (fileExists(dockerfilePath)) {
                                     def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
                                     def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
@@ -469,11 +479,12 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 'paymentservice', 'productcatalogservice',
                                 'recommendationservice', 'shippingservice'
                             ]
+                            def buildAllImages = (params.BUILD_ALL_IMAGES == null) ? true : params.BUILD_ALL_IMAGES
 
                             def failedServices = []
 
                             services.each { svc ->
-                                if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
+                                if (buildAllImages || env.CHANGED_FILES.contains("app_src/${svc}")) {
                                     def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
                                     if (fileExists("app_src/${svc}/Dockerfile")) {
                                         echo ">>> Scanning image: ${imageFull}"
@@ -562,6 +573,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
                                 'currencyservice'       : 'currencyService',
                                 'emailservice'          : 'emailService',
                                 'frontend'              : 'frontend',
+                                'paymentservice'        : 'paymentService',
                                 'productcatalogservice': 'productCatalogService',
                                 'recommendationservice': 'recommendationService',
                                 'shippingservice'      : 'shippingService',

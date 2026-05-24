@@ -55,10 +55,10 @@ Request rate for KEDA and alerting:
 sum(rate(nginx_ingress_controller_requests{namespace="app", ingress="app"}[1m]))
 ```
 
-Frontend available replicas:
+KEDA current frontend rollout replicas:
 
 ```promql
-kube_deployment_status_replicas_available{namespace="app", deployment="frontend"}
+kube_horizontalpodautoscaler_status_current_replicas{namespace="app", horizontalpodautoscaler="frontend-rps-keda-hpa"}
 ```
 
 HighRequestRate alert state:

@@ -12,9 +12,9 @@ while true; do
   echo "KEDA pods"
   kubectl get pods -n "${KEDA_NAMESPACE}" -o wide
   echo
-  echo "Frontend deployment and pods"
-  kubectl get deploy frontend -n "${APP_NAMESPACE}"
-  kubectl get pods -n "${APP_NAMESPACE}" -l app=frontend,pod-template-hash -o wide
+  echo "Frontend rollout and pods"
+  kubectl get rollout frontend -n "${APP_NAMESPACE}"
+  kubectl get pods -n "${APP_NAMESPACE}" -l app=frontend,rollouts-pod-template-hash -o wide
   echo
   echo "KEDA ScaledObject and HPA"
   kubectl get scaledobject frontend-rps-scaler -n "${APP_NAMESPACE}" || true

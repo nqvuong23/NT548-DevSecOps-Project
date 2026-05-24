@@ -125,17 +125,17 @@ data:
           },
           "targets": [
             {
-              "expr": "kube_deployment_status_replicas_available{namespace=\"app\", deployment=\"frontend\"}",
-              "legendFormat": "available replicas",
+              "expr": "max(kube_horizontalpodautoscaler_status_current_replicas{namespace=\"app\", horizontalpodautoscaler=\"frontend-rps-keda-hpa\"})",
+              "legendFormat": "current replicas",
               "refId": "A"
             },
             {
-              "expr": "kube_deployment_spec_replicas{namespace=\"app\", deployment=\"frontend\"}",
+              "expr": "max(kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"app\", horizontalpodautoscaler=\"frontend-rps-keda-hpa\"})",
               "legendFormat": "desired replicas",
               "refId": "B"
             }
           ],
-          "title": "Frontend Replicas",
+          "title": "Frontend Rollout Replicas",
           "type": "timeseries"
         },
         {

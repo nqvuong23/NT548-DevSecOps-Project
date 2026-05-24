@@ -53,13 +53,12 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   -f helm-chart/ingress-nginx/values.yaml \
   --wait --timeout 10m
 
-helm template online-boutique helm-chart/microservices \
-  -n app \
-  -f helm-chart/microservices/values.yaml \
-  -f helm-chart/microservices/values-demo-public.yaml \
-  | kubectl apply -f -
-
-kubectl rollout status deploy/frontend -n app --timeout=5m
+# App Online Boutique duoc deploy boi Jenkins + ArgoCD tu Harbor images.
+# Neu can rebuild image, chay Jenkins job `DevSecOps-Pipeline-Nhom10`.
+# Sau khi Jenkins push tag moi vao `helm-chart/microservices/values.yaml`,
+# ArgoCD `online-boutique-application` se tu sync vao namespace `app`.
+kubectl get application online-boutique-application -n argocd
+kubectl get rollout frontend -n app
 
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace --version 85.2.0 \
@@ -121,7 +120,7 @@ kubectl get prometheusrule -n monitoring | grep nt548
 
 Noi voi giang vien:
 
-"Em dung Prometheus scrape metric request tu ingress-nginx. KEDA doc Prometheus query request/second cua ingress app. Khi RPS vuot threshold 20, KEDA tao HPA `frontend-rps-keda-hpa` de scale `frontend` tu min 2 len toi da 6 replicas. Khi het tai, cooldown 120s dua frontend ve min replicas."
+"Em dung Prometheus scrape metric request tu ingress-nginx. KEDA doc Prometheus query request/second cua ingress app. Khi RPS vuot threshold 20, KEDA tao HPA `frontend-rps-keda-hpa` de scale Argo Rollout `frontend` tu min 2 len toi da 6 replicas. ArgoCD van quan ly spec rollout, con KEDA chi scale qua scale subresource. Khi het tai, cooldown 120s dua frontend ve min replicas."
 
 ### 2.1. Mo UI
 
@@ -166,7 +165,7 @@ Trong Grafana/Prometheus:
 ```promql
 sum(rate(nginx_ingress_controller_requests{namespace="app", ingress="app"}[1m]))
 ALERTS{alertname="HighRequestRate"}
-kube_deployment_status_replicas_available{namespace="app", deployment="frontend"}
+kube_horizontalpodautoscaler_status_current_replicas{namespace="app", horizontalpodautoscaler="frontend-rps-keda-hpa"}
 ```
 
 Bang chung nen chup:
@@ -174,7 +173,8 @@ Bang chung nen chup:
 ```bash
 kubectl get hpa -n app
 kubectl describe scaledobject frontend-rps-scaler -n app
-kubectl get pods -n app -l app=frontend,pod-template-hash -o wide
+kubectl get rollout frontend -n app
+kubectl get pods -n app -l app=frontend,rollouts-pod-template-hash -o wide
 ```
 
 ## 3. Kich ban 3 - Security detection va rollback/abort
@@ -271,7 +271,7 @@ bash demo-scripts/scenario3-security-sim.sh cleanup
 
 Kich ban 2:
 
-"Khi traffic tang, Prometheus co metric ingress request rate. KEDA doc metric do, tao HPA va scale frontend. Alert `HighRequestRate` firing tren Grafana/Prometheus. Khi load dung, HPA scale down ve min replicas."
+"Khi traffic tang, Prometheus co metric ingress request rate. KEDA doc metric do, tao HPA va scale Argo Rollout frontend. Alert `HighRequestRate` firing tren Grafana/Prometheus. Khi load dung, HPA scale down ve min replicas."
 
 Kich ban 3:
 

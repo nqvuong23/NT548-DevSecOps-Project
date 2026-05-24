@@ -8,7 +8,7 @@
 - `HighRequestRate` rule is loaded.
 - KEDA is installed in `keda`.
 - `frontend-rps-scaler` exists in `app`.
-- `frontend` is at or near 2 replicas before load starts.
+- Argo Rollout `frontend` is at or near 2 replicas before load starts.
 
 ## Demo Flow
 
@@ -30,11 +30,11 @@
 6. Observe request rate crossing the KEDA threshold.
 7. Observe `HighRequestRate` moving to `FIRING`.
 8. Observe KEDA-created HPA desired replicas increasing.
-9. Observe frontend pods scaling from 2 toward 6.
+9. Observe frontend rollout pods scaling from 2 toward 6.
 10. Let the k6 test finish.
 11. Observe request rate dropping.
 12. Observe the alert resolving.
-13. Observe frontend replicas scaling down after cooldown.
+13. Observe frontend rollout replicas scaling down after cooldown.
 
 ## Query To Validate Before Demo
 
