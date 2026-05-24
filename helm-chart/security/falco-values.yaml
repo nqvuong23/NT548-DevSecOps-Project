@@ -1,0 +1,44 @@
+# falcosecurity/falco chart version used by the runbook: 8.0.5
+
+driver:
+  enabled: true
+  kind: auto
+
+tolerations:
+  - operator: Exists
+
+nodeSelector:
+  kubernetes.io/os: linux
+
+falco:
+  json_output: true
+  http_output:
+    enabled: true
+    url: http://falco-falcosidekick.security.svc.cluster.local:2801/
+
+falcosidekick:
+  enabled: true
+  listenPort: "2801"
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: kube-prometheus-stack
+  prometheusRules:
+    enabled: false
+  config:
+    prometheus:
+      extralabels: "namespace,pod,container"
+  nodeSelector:
+    pool: observation
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: observation
+      effect: NoSchedule
+  webui:
+    enabled: false
+
+falcoctl:
+  artifact:
+    follow:
+      enabled: true

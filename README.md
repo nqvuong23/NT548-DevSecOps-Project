@@ -190,28 +190,32 @@ devsecops-project/
 
 **Mục đích:**
 
+Chứng minh môi trường production có đủ lớp chặn bảo mật từ CI, runtime đến CD: Gitleaks/Trivy/ZAP chặn finding trong pipeline, Falco/Falcosidekick xuất security event sang Prometheus, Kyverno audit workload baseline, NetworkPolicy quarantine pod bị ảnh hưởng, DefectDojo quản lý finding, và Argo Rollouts abort/rollback khi security gate fail.
+
 **Falco phát hiện runtime threat:**
 
 1. Deploy một version app có hành vi bất thường (VD: spawn shell, đọc file /etc/shadow)
 2. Falco DaemonSet phát hiện syscall vi phạm rule → fire alert qua Falcosidekick
-3. Falcosidekick gửi event đến: Slack (notify), Prometheus (metric falco_events_total)
-4. Grafana alert rule SecurityEventCritical trigger → webhook call Argo Rollouts
-5. Argo Rollouts rollback về revision trước đó (image SHA cũ)
-6. Kyverno optional: thêm NetworkPolicy isolate Pod bị ảnh hưởng
+3. Falcosidekick gửi event đến Prometheus (`falcosecurity_falcosidekick_falco_events_total`)
+4. Grafana/PrometheusRule `SecurityEventCritical` trigger từ metric Falco/Falcosidekick
+5. NetworkPolicy `scenario3-quarantine` isolate pod có label `security.nt548/quarantine=true`
+6. Argo Rollouts security AnalysisTemplate không promote revision risky
 
 **OWASP ZAP phát hiện vulnerability:**
 
-1. Deploy version app có lỗ hổng (VD: endpoint không có auth, SQL injection)
-2. OWASP ZAP DAST scan phát hiện High severity finding
+1. Jenkins deploy preview/canary candidate và chạy ZAP baseline scan vào URL production/demo
+2. OWASP ZAP DAST scan phát hiện High severity finding nếu app có lỗ hổng
 3. Jenkins DAST gate: fail → block promote lên production
 4. Argo Rollouts giữ nguyên production ở version cũ (không có gì để rollback vì prod chưa đổi)
 5. DefectDojo nhận finding, tạo ticket để developer fix
 
 **Kết quả cần thấy được:**
 
-- Grafana: alert hiển thị security event
-- Argo Rollouts UI: rollback thành công, revision giảm về version trước
-- Lệnh kubectl get pods: Pod mới chạy image SHA cũ
+- Grafana/Prometheus: alert `SecurityEventCritical` hoặc `Scenario3RolloutSecurityGateFailed`
+- Argo Rollouts UI: canary bị abort, stable revision vẫn phục vụ traffic
+- `kubectl get clusterpolicy`: policy `nt548-scenario3-workload-baseline` Ready
+- `kubectl get networkpolicy`: policy `scenario3-quarantine` tồn tại trong namespace `app`
+- DefectDojo UI: truy cập HTTPS và đăng nhập `admin/admin`
 
 ---
 

@@ -31,6 +31,7 @@ Usage:
 
 Commands:
   status            Check local tools and Kubernetes resources.
+  production        Apply persistent Scenario 3 Kyverno policy and quarantine NetworkPolicy.
   secret            Create a temporary fake leak under app_src and run Gitleaks.
   image             Run Trivy against an intentionally vulnerable public image.
   alert-rule        Apply the Scenario 3 PrometheusRule.
@@ -98,10 +99,22 @@ status_demo() {
     kubectl get crd rollouts.argoproj.io scaledobjects.keda.sh prometheusrules.monitoring.coreos.com 2>/dev/null || true
     kubectl get deploy,rollout,hpa -n "${APP_NAMESPACE}" 2>/dev/null || true
     kubectl get scaledobject -n "${APP_NAMESPACE}" 2>/dev/null || true
+    kubectl get clusterpolicy nt548-scenario3-workload-baseline 2>/dev/null || true
+    kubectl get networkpolicy scenario3-quarantine -n "${APP_NAMESPACE}" 2>/dev/null || true
+    kubectl get servicemonitor -A 2>/dev/null | grep -Ei 'falco|keda|ingress' || true
     kubectl get pods -A | grep -Ei 'falco|kyverno|defect|rollout|keda|prometheus|grafana' || true
   else
     log "kubectl context: unavailable from this shell"
   fi
+}
+
+production_demo() {
+  kubectl_ready || die "kubectl context is not ready."
+  cd "${ROOT_DIR}"
+  log "Applying persistent Scenario 3 production security controls"
+  kubectl apply -f k8s-manifest/security/scenario3-production.yaml
+  kubectl get clusterpolicy nt548-scenario3-workload-baseline
+  kubectl get networkpolicy scenario3-quarantine -n "${APP_NAMESPACE}"
 }
 
 secret_demo() {
@@ -189,7 +202,7 @@ runtime_demo() {
   log "Executing commands that Falco commonly flags: shell spawn and sensitive file read"
   kubectl exec -n "${APP_NAMESPACE}" "${RUNTIME_POD}" -- sh -c 'id >/dev/null; cat /etc/shadow >/dev/null 2>&1 || true; sh -c "echo scenario3-runtime-shell >/dev/null"'
 
-  log "Check Falco/Falcosidekick if installed:"
+  log "Check Falco/Falcosidekick runtime signal:"
   log "  kubectl logs -n security -l app.kubernetes.io/name=falco --tail=50"
   log "  PromQL: sum(increase(falco_events_total[5m])) by (rule, priority)"
 }
@@ -197,9 +210,11 @@ runtime_demo() {
 isolate_demo() {
   kubectl_ready || die "kubectl context is not ready."
   cd "${ROOT_DIR}"
-  log "Applying NetworkPolicy to isolate ${RUNTIME_POD}"
-  render_manifest demo-scripts/scenario3/isolate-runtime-threat-networkpolicy.yaml | kubectl apply -f -
-  kubectl get networkpolicy scenario3-isolate-runtime-threat -n "${APP_NAMESPACE}"
+  log "Labeling ${RUNTIME_POD} for the persistent quarantine NetworkPolicy"
+  kubectl apply -f k8s-manifest/security/scenario3-production.yaml
+  kubectl label pod "${RUNTIME_POD}" -n "${APP_NAMESPACE}" security.nt548/quarantine=true --overwrite
+  kubectl get networkpolicy scenario3-quarantine -n "${APP_NAMESPACE}"
+  kubectl get pod "${RUNTIME_POD}" -n "${APP_NAMESPACE}" --show-labels
 }
 
 rollout_demo() {
@@ -250,7 +265,7 @@ cleanup_demo() {
   cd "${ROOT_DIR}"
   if kubectl_ready; then
     log "Cleaning Kubernetes resources"
-    render_manifest demo-scripts/scenario3/isolate-runtime-threat-networkpolicy.yaml | kubectl delete -f - --ignore-not-found=true
+    kubectl label pod "${RUNTIME_POD}" -n "${APP_NAMESPACE}" security.nt548/quarantine- 2>/dev/null || true
     render_manifest demo-scripts/scenario3/runtime-threat-pod.yaml | kubectl delete -f - --ignore-not-found=true
     render_manifest demo-scripts/scenario3/rollout-security-demo.yaml | kubectl delete -f - --ignore-not-found=true
   fi
@@ -261,6 +276,7 @@ cleanup_demo() {
 cmd="${1:-}"
 case "${cmd}" in
   status) status_demo ;;
+  production) production_demo ;;
   secret) secret_demo ;;
   image) image_demo ;;
   alert-rule) alert_rule_demo ;;

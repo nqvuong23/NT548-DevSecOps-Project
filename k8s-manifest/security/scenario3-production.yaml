@@ -1,0 +1,70 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: nt548-scenario3-workload-baseline
+  labels:
+    app.kubernetes.io/part-of: nt548-security
+    scenario: security-scenario-3
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-no-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - app
+      validate:
+        message: "Scenario 3 baseline: containers should set allowPrivilegeEscalation=false."
+        pattern:
+          spec:
+            containers:
+              - =(securityContext):
+                  =(allowPrivilegeEscalation): false
+    - name: require-capability-drop-all
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - app
+      validate:
+        message: "Scenario 3 baseline: containers should drop Linux capabilities."
+        pattern:
+          spec:
+            containers:
+              - =(securityContext):
+                  =(capabilities):
+                    =(drop):
+                      - ALL
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scenario3-quarantine
+  namespace: app
+  labels:
+    app.kubernetes.io/part-of: nt548-security
+    scenario: security-scenario-3
+spec:
+  podSelector:
+    matchLabels:
+      security.nt548/quarantine: "true"
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

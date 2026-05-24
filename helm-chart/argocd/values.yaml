@@ -10,6 +10,10 @@ configs:
   params:
     server.insecure: "true"
 
+  secret:
+    argocdServerAdminPassword: "$2a$12$tPaz/Qf8XKjbL.hnhcIjO.HFKUOl2m/ZijTJYpg6KARbc2mb5zala"
+    argocdServerAdminPasswordMtime: "2026-05-24T00:00:00Z"
+
   rbac:
     policy.default: role:readonly
     policy.csv: |

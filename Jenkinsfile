@@ -64,6 +64,12 @@ spec:
     command: [sleep]
     args: [infinity]
 
+  # Container OWASP ZAP để chạy DAST gate cho kịch bản 3
+  - name: zap
+    image: zaproxy/zap-stable:2.16.1
+    command: [sleep]
+    args: [infinity]
+
   # Container Kaniko để Build & Push Image lên Harbor (Task 2.4)
   # Không cần privileged mode — đây là lý do dùng Kaniko thay Docker-in-Docker
   - name: kaniko
@@ -114,6 +120,7 @@ spec:
         // ArgoCD
         ARGOCD_SERVER      = "argocd.vuongdevops.io.vn"
         ARGOCD_APP_NAME    = "online-boutique-application"
+        DAST_TARGET_URL    = "https://app.vuongdevops.io.vn"
 
         // Image tag dùng Git commit SHA (7 ký tự đầu)
         IMAGE_TAG          = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
@@ -532,7 +539,66 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
         }
 
         // =====================================================================
-        // STAGE 9: GitOps - Update values.yaml & Trigger ArgoCD Auto-Sync
+        // STAGE 9: DAST - OWASP ZAP Baseline Gate - Scenario 3
+        // Chạy trước GitOps promote. Nếu ZAP phát hiện High risk thì dừng
+        // pipeline, production vẫn giữ revision hiện tại vì chưa cập nhật tag mới.
+        // =====================================================================
+        stage('DAST - OWASP ZAP Baseline') {
+            steps {
+                container('zap') {
+                    script {
+                        echo ">>> Đang chạy OWASP ZAP baseline scan trên ${DAST_TARGET_URL}..."
+                        def zapExit = sh(
+                            script: '''
+                                zap-baseline.py \
+                                  -t "${DAST_TARGET_URL}" \
+                                  -J zap-report.json \
+                                  -r zap-report.html \
+                                  -m 3 \
+                                  -I || true
+
+                                python3 - <<'PY'
+import json
+import sys
+
+with open("zap-report.json", "r", encoding="utf-8") as fh:
+    report = json.load(fh)
+
+high_alerts = []
+for site in report.get("site", []):
+    for alert in site.get("alerts", []):
+        risk_code = str(alert.get("riskcode", ""))
+        risk_desc = str(alert.get("riskdesc", ""))
+        if risk_code == "3" or risk_desc.lower().startswith("high"):
+            high_alerts.append(alert.get("name", "unknown-alert"))
+
+if high_alerts:
+    print("ZAP detected High risk findings:")
+    for name in sorted(set(high_alerts)):
+        print(f"- {name}")
+    sys.exit(1)
+
+print("ZAP gate passed: no High risk findings.")
+PY
+                            ''',
+                            returnStatus: true
+                        )
+
+                        if (zapExit != 0) {
+                            error "OWASP ZAP DAST gate failed. Xem zap-report.html/json trong Artifacts."
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'zap-report.*', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // =====================================================================
+        // STAGE 10: GitOps - Update values.yaml & Trigger ArgoCD Auto-Sync
         // =====================================================================
         stage('GitOps - Update Image Tag & Push') {
             steps {

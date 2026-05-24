@@ -12,7 +12,7 @@
 
 ## Demo Flow
 
-1. Open Grafana at `http://grafana.vuongdevops.io.vn`.
+1. Open Grafana at `https://grafana.vuongdevops.io.vn`.
 2. Open the `NT548 KEDA Scenario 2` dashboard.
 3. Open Prometheus alerts or Alertmanager.
 4. Start the watcher:

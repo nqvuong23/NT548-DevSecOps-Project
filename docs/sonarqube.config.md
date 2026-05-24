@@ -2,9 +2,9 @@
 
 ### Bước 1: Đăng nhập
 
-1. Truy cập URL: http://sonarqube.vuongdevops.io.vn/
-2. Đăng nhập bằng tài khoản mặc định (Username: admin, Password: admin).
-3. Sonarqube Web sẽ thông báo thay đổi mật khẩu, hãy nhập mật khẩu mới và share với thành viên trong nhóm biết (thường là `@Vuongnguyen1607`).
+1. Truy cập URL: https://sonarqube.vuongdevops.io.vn/
+2. Đăng nhập bằng tài khoản demo: Username `admin`, Password `admin`.
+3. Nếu password đã bị đổi sau buổi demo trước, chạy `bash demo-scripts/reset-sonarqube-admin.sh` trong container `nt548-gcloud-helm` để reset lại về `admin/admin`.
 
 ---
 

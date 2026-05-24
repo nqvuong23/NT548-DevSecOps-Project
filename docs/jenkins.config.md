@@ -2,15 +2,10 @@
 
 ### Bước 1: Đăng nhập
 
-1. Mở trình duyệt web và truy cập thẳng vào: **http://jenkins.vuongdevops.io.vn**
+1. Mở trình duyệt web và truy cập thẳng vào: **https://jenkins.vuongdevops.io.vn**
 *(Nếu Ingress chưa chạy hoặc chưa cấu hình file hosts, có thể tạo đường hầm bằng lệnh: `kubectl port-forward svc/jenkins-release 8080:8080 -n jenkins` rồi truy cập `http://localhost:8080`)*
    
-2. Để lấy mật khẩu đăng nhập lần đầu của Jenkins, mở Terminal/CMD và chạy lệnh sau:
-```bash
-kubectl get secret --namespace jenkins jenkins-release -o jsonpath="{.data.jenkins-admin-password}" | base64 --decode
-```
-
-3. Copy đoạn mật khẩu vừa hiện ra, quay lại trình duyệt và đăng nhập với Username là admin.
+2. Đăng nhập bằng tài khoản demo: Username `admin`, Password `admin`.
 
 ---
 

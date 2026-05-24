@@ -12,8 +12,18 @@ spec:
       rules:
         - alert: SecurityEventCritical
           expr: |
-            sum by (rule, priority) (
-              increase(falco_events_total{priority=~"Critical|Error|Warning"}[5m])
+            (
+              sum by (rule, priority) (
+                increase(falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[5m])
+              )
+              or
+              sum by (rule, priority) (
+                increase(falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[5m])
+              )
+              or
+              sum by (rule, priority) (
+                increase(falcosecurity_falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[5m])
+              )
             ) > 0
           for: 30s
           labels:
@@ -33,3 +43,16 @@ spec:
           annotations:
             summary: Scenario 3 rollout security gate failed
             description: "The Argo Rollouts analysis job for Scenario 3 failed, so the canary should abort or roll back."
+
+        - alert: Scenario3KyvernoPolicyViolation
+          expr: |
+            sum by (policy, rule, result) (
+              increase(kyverno_policy_results_total{policy=~"nt548-.*",result="fail"}[5m])
+            ) > 0
+          for: 30s
+          labels:
+            severity: warning
+            scenario: security-scenario-3
+          annotations:
+            summary: Scenario 3 Kyverno baseline violation
+            description: "Kyverno policy {{ $labels.policy }}/{{ $labels.rule }} reported {{ $labels.result }} for a Scenario 3 baseline check."

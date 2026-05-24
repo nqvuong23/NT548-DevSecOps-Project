@@ -57,6 +57,9 @@ helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add kedacore https://kedacore.github.io/charts
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo add kyverno https://kyverno.github.io/kyverno/
+helm repo add defectdojo https://raw.githubusercontent.com/DefectDojo/django-DefectDojo/helm-charts
 
 # Nếu dùng External Secret
 helm repo add external-secrets https://charts.external-secrets.io
@@ -89,6 +92,7 @@ cd ../observation
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring  --version 85.2.0 --values ./prometheus-stack/values.yaml --wait --timeout 10m
 
 kubectl apply -f ./prometheus-stack/rules/nt548-alerts.yaml
+kubectl apply -f ./prometheus-stack/rules/nt548-scenario3-security-alerts.yaml
 kubectl apply -f ./prometheus-stack/monitors/
 kubectl apply -f ./prometheus-stack/dashboards/scenario2-keda-dashboard-configmap.yaml
 
@@ -122,6 +126,21 @@ helm upgrade --install eso external-secrets/external-secrets -n security --wait 
 kubectl apply -f ./eso
 ```
 
+```
+# Security Deploy cho kịch bản 3 production
+cd ../helm-chart
+
+helm upgrade --install kyverno kyverno/kyverno -n kyverno --create-namespace --version 3.8.1 --values ./security/kyverno-values.yaml --wait --timeout 10m
+
+helm upgrade --install falco falcosecurity/falco -n security --create-namespace --version 8.0.5 --values ./security/falco-values.yaml --wait --timeout 10m
+
+helm upgrade --install defectdojo defectdojo/defectdojo -n defectdojo --create-namespace --version 1.9.28 --values ./defectdojo/values.yaml --wait --timeout 15m
+
+cd ..
+kubectl apply -f ./k8s-manifest/security/scenario3-production.yaml
+kubectl apply -f ./helm-chart/observation/prometheus-stack/rules/nt548-scenario3-security-alerts.yaml
+```
+
 ---
 
 ## Các lệnh xóa hạ tầng
@@ -138,13 +157,23 @@ terraform destroy -target=module.iam -target=module.networking -target=module.gk
 
 ## Danh sách các URL truy cập vào các tool
 
-- Microservice Web URL : https://app.vuongdevops.io.vn 
-- Jenkins URL          : https://jenkins.vuongdevops.io.vn 
-- Sonarqueue URL       : https://sonarqube.vuongdevops.io.vn 
-- Harbor URL           : https://harbor.vuongdevops.io.vn 
-- Hashicorp Vault URL  : https://vault.vuongdevops.io.vn 
-- Argocd URL           : https://argocd.vuongdevops.io.vn 
-- Argo Rollouts URL    : https://argorollouts.vuongdevops.io.vn 
-- DefectDojo URL       : https://defectdojo.vuongdevops.io.vn 
-- Grafana URL          : https://grafana.vuongdevops.io.vn 
-- Jaeger URL           : https://jaeger.vuongdevops.io.vn 
+Tất cả URL public dưới đây dùng HTTPS với certificate Let's Encrypt.
+
+| Thành phần | URL | Credential demo |
+| --- | --- | --- |
+| Microservice Web | https://app.vuongdevops.io.vn | Không cần login |
+| Jenkins | https://jenkins.vuongdevops.io.vn | `admin/admin` |
+| SonarQube | https://sonarqube.vuongdevops.io.vn | `admin/admin` |
+| Harbor | https://harbor.vuongdevops.io.vn | `admin/admin` |
+| HashiCorp Vault | https://vault.vuongdevops.io.vn | Token auth; nếu cần user/pass demo, enable `userpass` bằng root token rồi tạo user `admin/admin` |
+| ArgoCD | https://argocd.vuongdevops.io.vn | `admin/admin` |
+| Argo Rollouts | https://argorollouts.vuongdevops.io.vn | Không cần login |
+| DefectDojo | https://defectdojo.vuongdevops.io.vn | `admin/admin` |
+| Grafana | https://grafana.vuongdevops.io.vn | `admin/admin` |
+| Jaeger | https://jaeger.vuongdevops.io.vn | Không cần login |
+
+Nếu SonarQube bị đổi password sau demo, reset lại về `admin/admin`:
+
+```
+bash demo-scripts/reset-sonarqube-admin.sh
+```

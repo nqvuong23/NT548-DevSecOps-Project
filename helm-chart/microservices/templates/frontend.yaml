@@ -57,6 +57,9 @@ spec:
       analysis:
         templates:
           - templateName: frontend-success-rate
+          {{- if .Values.frontend.rollout.securityGate.enabled }}
+          - templateName: frontend-security-gate
+          {{- end }}
         args:
           - name: service-name
             value: {{ .Values.frontend.name }}

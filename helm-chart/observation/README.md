@@ -152,7 +152,7 @@ Expected scheduling:
 
 ## Grafana Datasources
 
-Grafana is exposed at `http://grafana.vuongdevops.io.vn` through the `kube-prometheus-stack` Grafana instance and is provisioned with:
+Grafana is exposed at `https://grafana.vuongdevops.io.vn` through the `kube-prometheus-stack` Grafana instance and is provisioned with:
 
 - Prometheus: in-cluster `kube-prometheus-stack-prometheus` service
 - Loki: `http://loki-gateway.logging.svc.cluster.local`

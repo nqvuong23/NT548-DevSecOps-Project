@@ -147,7 +147,14 @@ frontend:
       labelValue: ingressgateway
   rollout:
     enabled: true
-    replicas: 3
+    replicas: 2
+    securityGate:
+      enabled: true
+      prometheusAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+      lookback: 5m
+      interval: 15s
+      count: 4
+      failureLimit: 0
     steps:
       - setWeight: 20
       - pause: {duration: 1m}

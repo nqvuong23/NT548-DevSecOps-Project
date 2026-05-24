@@ -1,0 +1,25 @@
+{{- if and .Values.frontend.create .Values.frontend.rollout.enabled .Values.frontend.rollout.securityGate.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: frontend-security-gate
+  namespace: {{ .Release.Namespace }}
+spec:
+  metrics:
+    - name: falco-critical-events
+      interval: {{ .Values.frontend.rollout.securityGate.interval | quote }}
+      count: {{ .Values.frontend.rollout.securityGate.count }}
+      successCondition: result[0] == 0
+      failureLimit: {{ .Values.frontend.rollout.securityGate.failureLimit }}
+      provider:
+        prometheus:
+          address: {{ .Values.frontend.rollout.securityGate.prometheusAddress | quote }}
+          query: |
+            (
+              (sum(increase(falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
+              +
+              (sum(increase(falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
+              +
+              (sum(increase(falcosecurity_falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
+            )
+{{- end }}

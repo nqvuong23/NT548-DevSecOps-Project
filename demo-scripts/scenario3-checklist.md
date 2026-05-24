@@ -7,8 +7,8 @@
 - Argo Rollouts controller is installed in `argo-rollouts`.
 - `kubectl argo rollouts` plugin is installed for the cleanest demo view.
 - Prometheus stack is running in `monitoring`.
-- Optional but recommended: Falco and Falcosidekick are running in `security`.
-- Grafana URL: `http://grafana.vuongdevops.io.vn` with `admin/admin`.
+- Falco, Falcosidekick, Kyverno, and DefectDojo are running.
+- Grafana URL: `https://grafana.vuongdevops.io.vn` with `admin/admin`.
 
 ## Demo Flow
 
@@ -31,9 +31,10 @@
    bash demo-scripts/scenario3-security-sim.sh image
    ```
 
-5. Apply security alert rules:
+5. Apply persistent production controls and security alert rules:
 
    ```bash
+   bash demo-scripts/scenario3-security-sim.sh production
    bash demo-scripts/scenario3-security-sim.sh alert-rule
    ```
 
@@ -69,6 +70,8 @@
 Falco runtime event:
 
 ```promql
+sum(increase(falcosidekick_falco_events_total[5m])) by (rule, priority)
+sum(increase(falcosecurity_falcosidekick_falco_events_total[5m])) by (rule, priority)
 sum(increase(falco_events_total[5m])) by (rule, priority)
 ```
 

@@ -1,0 +1,116 @@
+# defectdojo/defectdojo chart version used by the runbook: 1.9.28
+
+createSecret: true
+createValkeySecret: true
+createPostgresqlSecret: true
+
+host: defectdojo.vuongdevops.io.vn
+siteUrl: https://defectdojo.vuongdevops.io.vn
+
+admin:
+  user: admin
+  password: admin
+  firstName: NT548
+  lastName: Demo
+  mail: admin@vuongdevops.io.vn
+  secretKey: nt548-defectdojo-demo-secret-key
+  credentialAes256Key: "0123456789abcdef0123456789abcdef"
+  metricsHttpAuthPassword: admin
+
+django:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    activateTLS: true
+    secretName: defectdojo-tls-secret
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+  uwsgi:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1024Mi
+  nginx:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 128Mi
+
+initializer:
+  run: true
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+celery:
+  beat:
+    nodeSelector:
+      pool: platform
+    tolerations:
+      - key: pool
+        operator: Equal
+        value: platform
+        effect: NoSchedule
+  worker:
+    nodeSelector:
+      pool: platform
+    tolerations:
+      - key: pool
+        operator: Equal
+        value: platform
+        effect: NoSchedule
+
+postgresql:
+  auth:
+    username: defectdojo
+    password: admin
+    database: defectdojo
+  primary:
+    nodeSelector:
+      pool: platform
+    tolerations:
+      - key: pool
+        operator: Equal
+        value: platform
+        effect: NoSchedule
+    persistence:
+      enabled: true
+      size: 8Gi
+
+valkey:
+  auth:
+    password: admin
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+  primary:
+    nodeSelector:
+      pool: platform
+    tolerations:
+      - key: pool
+        operator: Equal
+        value: platform
+        effect: NoSchedule

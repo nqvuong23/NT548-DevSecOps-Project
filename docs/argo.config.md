@@ -17,8 +17,7 @@ kubectl apply -f gitops/root/root-app.yaml
 
 # Login ArgoCD CLI
 
-ARGOCD_PASS=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-argocd login argocd.vuongdevops.io.vn --username admin --password "$ARGOCD_PASS" --insecure --grpc-web
+argocd login argocd.vuongdevops.io.vn --username admin --password admin --insecure --grpc-web
 
 # Thêm repo GitHub vào ArgoCD (repo public)
 
@@ -29,15 +28,10 @@ argocd repo add https://github.com/nqvuong23/NT548-DevSecOps-Project.git --name 
 argocd app get root-app --refresh --grpc-web
 argocd app sync root-app --grpc-web
 
-# Lay pass trong argocd
-
-kubectl -n argocd get secret argocd-initial-admin-secret \
- -o jsonpath="{.data.password}" | base64 -d && echo
-
 # Cach login
 
 Username: admin
-Password: <password vừa lấy ở trên>
+Password: admin
 
 # Test hoat dong dung chua
 
@@ -70,5 +64,5 @@ kubectl get pods -n app -o wide
 
 kubectl argo rollouts version
 
-ArgoCD URL : http://argocd.vuongdevops.io.vn
-Argo Rollouts Dashboard : http://argorollouts.vuongdevops.io.vn
+ArgoCD URL : https://argocd.vuongdevops.io.vn
+Argo Rollouts Dashboard : https://argorollouts.vuongdevops.io.vn

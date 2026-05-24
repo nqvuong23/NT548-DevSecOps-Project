@@ -1,0 +1,50 @@
+# kyverno/kyverno chart version used by the runbook: 3.8.1
+
+global:
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+admissionController:
+  replicas: 1
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+backgroundController:
+  replicas: 1
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+cleanupController:
+  replicas: 1
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
+
+reportsController:
+  replicas: 1
+  nodeSelector:
+    pool: platform
+  tolerations:
+    - key: pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
