@@ -112,18 +112,14 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector -n moni
 ```
 # Apply K8s manifest
 cd ../../k8s-manifest
-kubectl apply -f .
+kubectl apply -f ./common
 ```
 
 ```
 # Deploy and Apply External Secrets (nếu dùng)
 helm upgrade --install eso external-secrets/external-secrets -n security --wait --timeout 10m --set installCRDs=true
 
-cd ../eso-manifest
-
-kubectl apply -f eso_sa.yaml
-kubectl apply -f vault_store.yaml
-kubectl apply -f harbor_external.yaml
+kubectl apply -f ./eso
 ```
 
 ---
