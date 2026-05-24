@@ -102,3 +102,47 @@ variable "cert_manager_helm_repo_url" {
 variable "cert_manager_helm_namespace" {
   type = string
 }
+
+variable "jenkins_helm_repo_url" {
+  type = string
+}
+
+variable "jenkins_helm_namespace" {
+  type = string
+}
+
+variable "sonarqube_helm_repo_url" {
+  type = string
+}
+
+variable "sonarqube_helm_namespace" {
+  type = string
+}
+
+variable "harbor_helm_repo_url" {
+  type = string
+}
+
+variable "harbor_helm_namespace" {
+  type = string
+}
+
+variable "vault_helm_repo_url" {
+  type = string
+}
+
+variable "vault_helm_namespace" {
+  type = string
+}
+
+variable "argo_helm_repo_url" {
+  type = string
+}
+
+variable "argocd_helm_namespace" {
+  type = string
+}
+
+variable "argo_rollouts_helm_namespace" {
+  type = string
+}
