@@ -75,7 +75,7 @@ securityContext:
 adService:
   create: true
   name: adservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 200m
@@ -86,7 +86,7 @@ adService:
 cartService:
   create: true
   name: cartservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 200m
@@ -97,7 +97,7 @@ cartService:
 checkoutService:
   create: true
   name: checkoutservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 100m
@@ -108,7 +108,7 @@ checkoutService:
 currencyService:
   create: true
   name: currencyservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 100m
@@ -119,7 +119,7 @@ currencyService:
 emailService:
   create: true
   name: emailservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 100m
@@ -130,7 +130,7 @@ emailService:
 frontend:
   create: true
   name: frontend
-  tag: "f555b5d"
+  tag: "f1e862f"
   externalService: false
   cymbalBranding: false
   # One of: local, gcp, aws, azure, onprem, alibaba. When not set, defaults to "local" unless running in GKE, otherwise auto-sets to gcp.
@@ -175,7 +175,7 @@ loadGenerator:
 paymentService:
   create: false
   name: paymentservice
-  tag: "1b0cce0"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 100m
@@ -186,7 +186,7 @@ paymentService:
 productCatalogService:
   create: true
   name: productcatalogservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   # Specifies an extra latency to any request on productcatalogservice, by default no extra latency.
   extraLatency: ""
   resources:
@@ -199,7 +199,7 @@ productCatalogService:
 recommendationService:
   create: true
   name: recommendationservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 100m
@@ -210,7 +210,7 @@ recommendationService:
 shippingService:
   create: true
   name: shippingservice
-  tag: "f555b5d"
+  tag: "f1e862f"
   resources:
     requests:
       cpu: 100m
