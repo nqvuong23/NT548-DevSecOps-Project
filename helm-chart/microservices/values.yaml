@@ -145,6 +145,14 @@ frontend:
       namespace: asm-ingress
       labelKey: asm
       labelValue: ingressgateway
+  rollout:
+    enabled: true
+    replicas: 3
+    steps:
+      - setWeight: 20
+      - pause: { duration: 1m }
+      - setWeight: 50
+      - pause: { duration: 1m }
   resources:
     requests:
       cpu: 100m
