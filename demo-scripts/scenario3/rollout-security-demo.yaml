@@ -1,0 +1,112 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: scenario3-security-gate
+  namespace: app
+  labels:
+    scenario: security-scenario-3
+spec:
+  metrics:
+    - name: security-gate
+      count: 1
+      failureLimit: 0
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            template:
+              metadata:
+                labels:
+                  scenario: security-scenario-3
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: security-gate
+                    image: busybox:1.36
+                    command:
+                      - sh
+                      - -c
+                    args:
+                      - |
+                        echo "SecurityEventCritical: simulated gate failure"
+                        exit 1
+                    resources:
+                      requests:
+                        cpu: 10m
+                        memory: 16Mi
+                      limits:
+                        cpu: 50m
+                        memory: 64Mi
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: scenario3-security-demo
+  namespace: app
+  labels:
+    app: scenario3-security-demo
+    scenario: security-scenario-3
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: scenario3-security-demo
+  template:
+    metadata:
+      labels:
+        app: scenario3-security-demo
+        scenario: security-scenario-3
+    spec:
+      nodeSelector:
+        pool: app
+      tolerations:
+        - key: pool
+          operator: Equal
+          value: app
+          effect: NoSchedule
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:blue
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SCENARIO
+              value: security-stable
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+  strategy:
+    canary:
+      steps:
+        - setWeight: 50
+        - pause:
+            duration: 10s
+        - analysis:
+            templates:
+              - templateName: scenario3-security-gate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario3-security-demo
+  namespace: app
+  labels:
+    app: scenario3-security-demo
+    scenario: security-scenario-3
+spec:
+  selector:
+    app: scenario3-security-demo
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

@@ -1,0 +1,34 @@
+# Demo-only override for Scenario 2/3 live rehearsals.
+# Keep values.yaml on Harbor for the CI/CD flow, but use the public Online Boutique
+# images when Harbor has not been populated by Jenkins yet.
+
+images:
+  repository: us-central1-docker.pkg.dev/google-samples/microservices-demo
+
+googleCloudOperations:
+  tracing: false
+
+adService:
+  tag: v0.10.3
+cartService:
+  tag: v0.10.3
+checkoutService:
+  tag: v0.10.3
+currencyService:
+  tag: v0.10.3
+emailService:
+  tag: v0.10.3
+frontend:
+  tag: v0.10.3
+loadGenerator:
+  tag: v0.10.3
+paymentService:
+  tag: v0.10.3
+productCatalogService:
+  tag: v0.10.3
+recommendationService:
+  tag: v0.10.3
+shippingService:
+  tag: v0.10.3
+shoppingAssistantService:
+  tag: v0.10.3

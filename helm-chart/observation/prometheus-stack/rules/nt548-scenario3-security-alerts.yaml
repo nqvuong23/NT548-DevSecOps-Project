@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nt548-scenario3-security-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: nt548-observability
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: nt548.scenario3.security
+      rules:
+        - alert: SecurityEventCritical
+          expr: |
+            sum by (rule, priority) (
+              increase(falco_events_total{priority=~"Critical|Error|Warning"}[5m])
+            ) > 0
+          for: 30s
+          labels:
+            severity: critical
+            scenario: security-scenario-3
+          annotations:
+            summary: Falco detected a critical runtime security event
+            description: "Falco rule {{ $labels.rule }} emitted priority {{ $labels.priority }} during Scenario 3."
+
+        - alert: Scenario3RolloutSecurityGateFailed
+          expr: |
+            max_over_time(kube_job_status_failed{namespace="app", job_name=~".*scenario3-security.*"}[10m]) > 0
+          for: 30s
+          labels:
+            severity: critical
+            scenario: security-scenario-3
+          annotations:
+            summary: Scenario 3 rollout security gate failed
+            description: "The Argo Rollouts analysis job for Scenario 3 failed, so the canary should abort or roll back."

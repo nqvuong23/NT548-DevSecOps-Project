@@ -23,6 +23,7 @@ helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheu
   --timeout 15m
 
 kubectl apply -f helm-chart/observation/prometheus-stack/rules/nt548-alerts.yaml
+kubectl apply -f helm-chart/observation/prometheus-stack/rules/nt548-scenario3-security-alerts.yaml
 kubectl apply -f helm-chart/observation/prometheus-stack/monitors/
 kubectl apply -f helm-chart/observation/prometheus-stack/dashboards/scenario2-keda-dashboard-configmap.yaml
 ```
@@ -66,6 +67,20 @@ HighRequestRate alert state:
 ALERTS{alertname="HighRequestRate", alertstate="firing"}
 ```
 
+## Scenario 3 Queries
+
+Falco runtime security events, when Falco/Falcosidekick is installed:
+
+```promql
+sum(increase(falco_events_total[5m])) by (rule, priority)
+```
+
+Scenario 3 alert states:
+
+```promql
+ALERTS{scenario="security-scenario-3"}
+```
+
 ## Verify
 
 ```bash
@@ -81,4 +96,5 @@ Expected targets:
 - `ingress-nginx-controller` ServiceMonitor is `UP`.
 - `otel-gateway` ServiceMonitor is `UP`.
 - `nt548-scenario2-alerts` rules are loaded.
+- `nt548-scenario3-security-alerts` rules are loaded for the security demo.
 - Grafana has Prometheus, Loki, and Jaeger datasources.
