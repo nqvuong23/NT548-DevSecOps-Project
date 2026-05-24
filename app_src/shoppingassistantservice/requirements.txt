@@ -7,7 +7,7 @@ annotated-types==0.7.0
 anyio==4.10.0
     # via
     #   google-genai
-    #   httpx
+    #   httpx 
 asyncpg==0.30.0
     # via
     #   google-cloud-alloydb-connector

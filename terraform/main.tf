@@ -1,6 +1,19 @@
 locals {
-  nginx_values_path        = "${path.root}/../helm-chart/ingress-nginx/values.yaml"
-  cert_manager_values_path = "${path.root}/../helm-chart/cert-manager/values.yaml"
+  nginx_values_path         = "${path.root}/../helm-chart/ingress-nginx/values.yaml"
+  cert_manager_values_path  = "${path.root}/../helm-chart/cert-manager/values.yaml"
+  jenkins_values_path       = "${path.root}/../helm-chart/jenkins/values.yaml"
+  sonarqube_values_path     = "${path.root}/../helm-chart/sonarqube/values.yaml"
+  harbor_values_path        = "${path.root}/../helm-chart/harbor/values.yaml"
+  vault_values_path         = "${path.root}/../helm-chart/vault-hashicorp/values.yaml"
+  argocd_values_path        = "${path.root}/../helm-chart/argocd/values.yaml"
+  argo_rollouts_vaules_path = "${path.root}/../helm-chart/argo-rollouts/values.yaml"
+
+  jenkins_rbac_path                = "${path.root}/../helm-chart/jenkins/rbac.yaml"
+  cert_manager_cluster_issuer_path = "${path.root}/../helm-chart/cert-manager/cluster_issuer.yaml"
+  ingress_nginx_path               = "${path.root}/../helm-chart/ingress-nginx/ingress.yaml"
+  argo_ssh_auth_path               = "${path.root}/../helm-chart/argocd/argo_repo_ssh.yaml"
+  argo_application_path            = "${path.root}/../helm-chart/argocd/microservice_app.yaml"
+  harbor_auth_path                 = "${path.root}/../helm-chart/argocd/harbor_auth.yaml"
 }
 
 # Gọi moduel iam
@@ -60,14 +73,46 @@ module "gke" {
 module "k8s-bootstrap" {
   source = "./modules/k8s-bootstrap"
 
-  namespaces                         = var.gke_namespaces
-  nginx_helm_namespace               = var.nginx_helm_namespace
-  nginx_helm_repo_url                = var.nginx_helm_repo_url
-  nginx_helm_values_file_path        = local.nginx_values_path
-  nginx_static_ip                    = module.networking.nginx-ip
-  cert_manager_helm_repo_url         = var.cert_manager_helm_repo_url
+  namespaces                  = var.gke_namespaces
+  nginx_helm_namespace        = var.nginx_helm_namespace
+  nginx_helm_repo_url         = var.nginx_helm_repo_url
+  nginx_helm_values_file_path = local.nginx_values_path
+  nginx_static_ip             = module.networking.nginx-ip
+
   cert_manager_helm_namespace        = var.cert_manager_helm_namespace
+  cert_manager_helm_repo_url         = var.cert_manager_helm_repo_url
   cert_manager_helm_values_file_path = local.cert_manager_values_path
+
+  jenkins_helm_namespace        = var.jenkins_helm_namespace
+  jenkins_helm_repo_url         = var.jenkins_helm_repo_url
+  jenkins_helm_values_file_path = local.jenkins_values_path
+
+  sonarqube_helm_namespace        = var.sonarqube_helm_namespace
+  sonarqube_helm_repo_url         = var.sonarqube_helm_repo_url
+  sonarqube_helm_values_file_path = local.sonarqube_values_path
+
+  harbor_helm_namespace        = var.harbor_helm_namespace
+  harbor_helm_repo_url         = var.harbor_helm_repo_url
+  harbor_helm_values_file_path = local.harbor_values_path
+
+  vault_helm_namespace        = var.vault_helm_namespace
+  vault_helm_repo_url         = var.vault_helm_repo_url
+  vault_helm_values_file_path = local.vault_values_path
+
+  argocd_helm_namespace        = var.argocd_helm_namespace
+  argocd_helm_repo_url         = var.argo_helm_repo_url
+  argocd_helm_values_file_path = local.argocd_values_path
+
+  argo_rollouts_helm_namespace        = var.argo_rollouts_helm_namespace
+  argo_rollouts_helm_repo_url         = var.argo_helm_repo_url
+  argo_rollouts_helm_values_file_path = local.argo_rollouts_vaules_path
+
+  jenkins_rbac_path                = local.jenkins_rbac_path
+  cert_manager_cluster_issuer_path = local.cert_manager_cluster_issuer_path
+  ingress_nginx_path               = local.ingress_nginx_path
+  argo_application_path            = local.argo_application_path
+  argo_ssh_auth_path               = local.argo_ssh_auth_path
+  harbor_auth_path                 = local.harbor_auth_path
 
   depends_on = [module.gke]
 }

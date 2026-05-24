@@ -30,8 +30,9 @@ spec:
     effect: "NoSchedule"
 
   volumes:
-  # Shared emptyDir volume for nested dockerd socket
-  - name: docker-run
+  # Shared emptyDir volume để truyền Harbor docker config.json tới Kaniko
+  # Kaniko đọc credentials tại /kaniko/.docker/config.json
+  - name: kaniko-docker-config
     emptyDir: {}
 
   containers:
@@ -62,22 +63,19 @@ spec:
     image: aquasec/trivy:0.50.1
     command: [sleep]
     args: [infinity]
-    volumeMounts:
-    - name: docker-run
-      mountPath: /var/run
 
-  # Container Docker để Build & Push Image lên Harbor (Task 2.4)
-  - name: docker
-    image: docker:24.0.7-dind
+  # Container Kaniko để Build & Push Image lên Harbor (Task 2.4)
+  # Không cần privileged mode — đây là lý do dùng Kaniko thay Docker-in-Docker
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     command: [sleep]
     args: [infinity]
-    securityContext:
-      privileged: true
     volumeMounts:
-    - name: docker-run
-      mountPath: /var/run
+    - name: kaniko-docker-config
+      mountPath: /kaniko/.docker
 
   # Container kubectl + yq + argocd-cli để Update Helm & Trigger ArgoCD (Task 2.4)
+  # Cũng dùng để chuẩn bị Harbor docker config.json cho Kaniko
   - name: tools
     image: alpine/k8s:1.28.3
     command: [sleep]
@@ -85,6 +83,9 @@ spec:
     env:
     - name: HOME
       value: /root
+    volumeMounts:
+    - name: kaniko-docker-config
+      mountPath: /kaniko/.docker
 """
         }
     }
@@ -95,23 +96,16 @@ spec:
     environment {
         // Harbor Registry
         HARBOR_REGISTRY    = "harbor.vuongdevops.io.vn"
-        HARBOR_PROJECT     = "devsecops"
-        // Credential ID lưu trong Jenkins (username/password của Harbor robot account)
-        HARBOR_CREDS_ID    = "harbor-robot-credentials"
+        HARBOR_PROJECT     = "devsecops_nhom10"
 
         // Git repo để update Helm values (GitOps)
         GIT_REPO_URL       = "https://github.com/${env.GIT_URL?.tokenize('/')[-2]}/${env.GIT_URL?.tokenize('/')[-1]?.replace('.git','')}"
-        GIT_CREDS_ID       = "github-token"
         GIT_USER_NAME      = "Jenkins Pipeline"
         GIT_USER_EMAIL     = "jenkins@vuongdevops.io.vn"
 
         // ArgoCD
         ARGOCD_SERVER      = "argocd.vuongdevops.io.vn"
-        ARGOCD_APP_NAME    = "microservices"
-        ARGOCD_CREDS_ID    = "argocd-token"
-
-        // SonarQube
-        SONAR_CREDS_ID     = "sonarqube-token"
+        ARGOCD_APP_NAME    = "online-boutique"
 
         // Image tag dùng Git commit SHA (7 ký tự đầu)
         IMAGE_TAG          = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
@@ -128,7 +122,8 @@ spec:
                     // Lấy commit SHA sau khi checkout để đảm bảo chính xác
                     env.IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
                     env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG}"
+                    env.CHANGED_FILES = sh(script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
+                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES}"
                 }
             }
         }
@@ -163,14 +158,23 @@ spec:
 
         // =====================================================================
         // STAGE 3: SAST - SonarQube Analysis - Task 2.3
+        // Lấy SonarQube token từ Vault thay vì Jenkins credential
         // =====================================================================
         stage('SAST - SonarQube') {
             steps {
                 container('sonar-scanner') {
-                    script {
-                        echo ">>> Đang bắt đầu phân tích mã nguồn với SonarQube..."
-                        withSonarQubeEnv() {
-                            withCredentials([string(credentialsId: "${SONAR_CREDS_ID}", variable: 'SONAR_TOKEN')]) {
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10_kv/sonarqube',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'SONAR_TOKEN', vaultKey: 'token']
+                            ]
+                        ]
+                    ]) {
+                        script {
+                            echo ">>> Đang bắt đầu phân tích mã nguồn với SonarQube..."
+                            withSonarQubeEnv(installationName: 'sonarqube-server') {
                                 sh 'sonar-scanner -Dsonar.token=$SONAR_TOKEN'
                             }
                         }
@@ -184,14 +188,58 @@ spec:
         // =====================================================================
         stage('Quality Gate Check') {
             steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    script {
-                        echo ">>> Đang chờ kết quả Quality Gate từ SonarQube Webhook..."
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "Pipeline bị hủy vì không vượt qua được SonarQube Quality Gate! Trạng thái: ${qg.status}"
+                container('sonar-scanner') {
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10_kv/sonarqube',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'SONAR_TOKEN', vaultKey: 'token']
+                            ]
+                        ]
+                    ]) {
+                        withSonarQubeEnv(installationName: 'sonarqube-server') {
+                            script {
+                                echo ">>> Đang chờ kết quả Quality Gate từ SonarQube..."
+
+                                // Lấy task ID từ file report-task.txt do sonar-scanner tạo ra
+                                def taskId = sh(
+                                    script: "grep 'ceTaskId=' .scannerwork/report-task.txt | cut -d'=' -f2",
+                                    returnStdout: true
+                                ).trim()
+                                echo ">>> Polling task ID: ${taskId}"
+
+                                // Chờ SonarQube xử lý xong task phân tích (tối đa 10 phút)
+                                timeout(time: 10, unit: 'MINUTES') {
+                                    waitUntil(initialRecurrencePeriod: 10000) {
+                                        def taskStatus = sh(
+                                            script: """
+                                                curl -sf -u "\${SONAR_TOKEN}:" "\${SONAR_HOST_URL}/api/ce/task?id=${taskId}" \
+                                                  | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4
+                                            """,
+                                            returnStdout: true
+                                        ).trim()
+                                        echo ">>> Task processing status: ${taskStatus}"
+                                        return taskStatus in ['SUCCESS', 'FAILED', 'CANCELLED', 'ERROR']
+                                    }
+                                }
+
+                                // Kiểm tra kết quả Quality Gate sau khi task xử lý xong
+                                def qgStatus = sh(
+                                    script: """
+                                        curl -sf -u "\${SONAR_TOKEN}:" "\${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=DevSecOps_Nhom10" \
+                                          | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+
+                                echo ">>> Quality Gate status: ${qgStatus}"
+                                if (qgStatus != 'OK') {
+                                    error "Pipeline bị hủy vì không vượt qua được SonarQube Quality Gate! Trạng thái: ${qgStatus}"
+                                }
+                                echo ">>> Quality Gate PASSED!"
+                            }
                         }
-                        echo ">>> Quality Gate PASSED!"
                     }
                 }
             }
@@ -252,29 +300,81 @@ spec:
         }
 
         // =====================================================================
-        // STAGE 7: Build Docker Image - Task 2.4 [MỚI]
-        // Build tất cả microservice có Dockerfile thay đổi
+        // STAGE 7: Build & Push Docker Images via Kaniko - Task 2.4
+        //
+        // Kaniko là công cụ build image không cần Docker daemon và không cần
+        // privileged mode — phù hợp cho môi trường Kubernetes.
+        //
+        // Quy trình:
+        //   1. Lấy Harbor credentials từ Vault (trong container 'tools').
+        //   2. Ghi /kaniko/.docker/config.json vào shared emptyDir volume —
+        //      đây là best practice để truyền credentials cho Kaniko mà không
+        //      expose chúng trên command line hay biến môi trường.
+        //   3. Kaniko đọc config.json, build image từ Dockerfile và push
+        //      thẳng lên Harbor trong một lệnh duy nhất.
+        //
+        // QUAN TRỌNG: Kaniko executor thoát ra sau mỗi lần build, do đó
+        //   không thể gọi nhiều lệnh sh riêng lẻ trong cùng một container
+        //   block. Giải pháp: xây dựng một shell script duy nhất chứa toàn
+        //   bộ các lệnh kaniko và chạy trong một sh call.
         // =====================================================================
-        stage('Build Docker Images') {
+        stage('Build & Push Images via Kaniko') {
             steps {
-                container('docker') {
-                    script {
-                        // Khởi động dockerd (Docker-in-Docker) cục bộ với --insecure-registry
-                        sh """
-                            if ! docker info >/dev/null 2>&1; then
-                                echo ">>> Khởi động dockerd cục bộ..."
-                                dockerd --insecure-registry harbor.vuongdevops.io.vn >/tmp/dockerd.log 2>&1 &
-                                
-                                # Chờ dockerd sẵn sàng
-                                for i in {1..30}; do
-                                    docker info >/dev/null 2>&1 && break
-                                    echo "Chờ dockerd khởi động..."
-                                    sleep 2
-                                done
-                            fi
-                        """
+                // Bước 1: Lấy credentials từ Vault và ghi docker config.json
+                // vào shared volume để Kaniko có thể đọc khi xác thực với Harbor.
+                // Thực hiện trong container 'tools' (có shell đầy đủ).
+                container('tools') {
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10_kv/harbor',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'HARBOR_USER', vaultKey: 'username'],
+                                [envVar: 'HARBOR_PASS', vaultKey: 'password']
+                            ]
+                        ]
+                    ]) {
+                        script {
+                            echo ">>> Chuẩn bị Harbor credentials cho Kaniko..."
 
-                        echo ">>> Đang build Docker Image với tag: ${IMAGE_TAG}..."
+                            // Tạo docker config.json dạng base64 auth token
+                            // Best practice: dùng printf thay echo để tránh newline,
+                            // ghi vào shared volume /kaniko/.docker/config.json
+                            sh '''
+                                mkdir -p /kaniko/.docker
+                                AUTH_B64=$(printf "%s:%s" "${HARBOR_USER}" "${HARBOR_PASS}" | base64 | tr -d '\\n')
+                                cat > /kaniko/.docker/config.json <<EOF
+{
+  "auths": {
+    "${HARBOR_REGISTRY}": {
+      "auth": "${AUTH_B64}"
+    }
+  }
+}
+EOF
+                                echo ">>> docker config.json đã được tạo tại /kaniko/.docker/config.json"
+                                # Kiểm tra file tồn tại (không in nội dung để bảo mật)
+                                ls -la /kaniko/.docker/config.json
+                            '''
+                        }
+                    }
+                }
+
+                // Bước 2: Kaniko build & push từng microservice lên Harbor
+                //
+                // FIX: Kaniko executor process thoát ra (exit) sau mỗi lần
+                // build xong. Nếu gọi sh() nhiều lần trong cùng container
+                // block, Jenkins sẽ báo lỗi "Process exited immediately after
+                // creation" từ lần build thứ 2 trở đi vì shell trong container
+                // không còn tồn tại.
+                //
+                // Giải pháp: Xây dựng toàn bộ các lệnh kaniko thành một
+                // chuỗi script duy nhất trong Groovy, sau đó thực thi bằng
+                // một sh() call duy nhất — Kaniko chạy tuần tự từng lệnh
+                // trong cùng một shell process.
+                container('kaniko') {
+                    script {
+                        echo ">>> Đang build & push Docker Images bằng Kaniko với tag: ${IMAGE_TAG}..."
 
                         // Danh sách các microservice cần build
                         def services = [
@@ -284,93 +384,131 @@ spec:
                             'currencyservice',
                             'emailservice',
                             'frontend',
-                            'paymentservice',
                             'productcatalogservice',
                             'recommendationservice',
                             'shippingservice'
                         ]
 
-                        // Chỉ build các service có Dockerfile thay đổi trong commit
-                        def changedFiles = sh(
-                            script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""',
-                            returnStdout: true
-                        ).trim()
+                        // Xây dựng script shell tổng hợp — tất cả lệnh kaniko
+                        // được nối vào một chuỗi và chạy trong một sh() duy nhất.
+                        // Điều này đảm bảo container shell process không thoát
+                        // giữa các lần build.
+                        def buildScript = '#!/busybox/sh\nset -e\n'
+
+                        // Track service nào thực sự được build để Stage 9 (GitOps)
+                        // chỉ cập nhật tag của đúng service đó trong values.yaml.
+                        def builtServices = []
 
                         services.each { svc ->
                             def dockerfilePath = "app_src/${svc}/Dockerfile"
-                            // Build nếu service này có thay đổi HOẶC lần đầu chạy
-                            if (changedFiles.contains("app_src/${svc}") || changedFiles.isEmpty()) {
-                                def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                                def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
 
+                            if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
                                 if (fileExists(dockerfilePath)) {
-                                    echo ">>> Building: ${imageFull}"
-                                    sh """
-                                        docker build \
-                                          -t ${imageFull} \
-                                          -t ${imageLatest} \
-                                          -f ${dockerfilePath} \
-                                          ./app_src/${svc}
-                                    """
+                                    def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
+                                    def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
+
+                                    // Đánh dấu service này sẽ được build & push
+                                    builtServices.add(svc)
+
+                                    buildScript += """
+echo '>>> Building & Pushing: ${imageFull}'
+/kaniko/executor \\
+  --context      \$(pwd)/app_src/${svc} \\
+  --dockerfile   \$(pwd)/${dockerfilePath} \\
+  --destination  ${imageFull} \\
+  --destination  ${imageLatest} \\
+  --cache=true \\
+  --cache-repo   ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/cache_v3 
+echo '>>> Kaniko đã build và push thành công: ${imageFull}'
+"""
                                 } else {
-                                    echo ">>> Bỏ qua ${svc}: không tìm thấy Dockerfile tại ${dockerfilePath}"
+                                    buildScript += "echo '>>> Bỏ qua ${svc}: không tìm thấy Dockerfile tại ${dockerfilePath}'\n"
                                 }
                             } else {
-                                echo ">>> Bỏ qua ${svc}: không có thay đổi"
+                                buildScript += "echo '>>> Bỏ qua ${svc}: không có thay đổi'\n"
                             }
                         }
+
+                        buildScript += "echo '>>> Build & Push hoàn tất! Image tag: ${IMAGE_TAG}'\n"
+
+                        // Lưu danh sách service đã build vào env var để Stage 9 dùng
+                        env.BUILT_SERVICES = builtServices.join(',')
+                        echo ">>> Services đã build & push: ${builtServices.join(', ') ?: 'không có service nào'}"
+
+                        // Thực thi toàn bộ script trong một sh() call duy nhất
+                        sh(script: buildScript)
                     }
                 }
             }
         }
 
         // =====================================================================
-        // STAGE 8: Image Scan - Trivy - Task 2.4 [CẬP NHẬT]
-        // Quét image vừa build thay vì alpine:3.18
+        // STAGE 8: Image Scan - Trivy - Task 2.4
+        // Quét image trực tiếp từ Harbor Registry sau khi Kaniko đã push xong.
+        // Trivy tự authenticate với Harbor qua --username / --password.
         // =====================================================================
         stage('Image Scan - Trivy') {
             steps {
                 container('trivy') {
-                    script {
-                        echo ">>> Đang bắt đầu quét Docker Image bằng Trivy..."
-
-                        def services = [
-                            'adservice', 'cartservice', 'checkoutservice',
-                            'currencyservice', 'emailservice', 'frontend',
-                            'paymentservice', 'productcatalogservice',
-                            'recommendationservice', 'shippingservice'
+                    withVault(vaultSecrets: [
+                        [
+                            path: 'devsecops_nhom10_kv/harbor',
+                            engineVersion: 2,
+                            secretValues: [
+                                [envVar: 'HARBOR_USER', vaultKey: 'username'],
+                                [envVar: 'HARBOR_PASS', vaultKey: 'password']
+                            ]
                         ]
+                    ]) {
+                        script {
+                            echo ">>> Đang bắt đầu quét Docker Image bằng Trivy (từ Harbor Registry)..."
 
-                        def failedServices = []
+                            def services = [
+                                'adservice', 'cartservice', 'checkoutservice',
+                                'currencyservice', 'emailservice', 'frontend',
+                                'paymentservice', 'productcatalogservice',
+                                'recommendationservice', 'shippingservice'
+                            ]
 
-                        services.each { svc ->
-                            def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                            if (fileExists("app_src/${svc}/Dockerfile")) {
-                                echo ">>> Scanning image: ${imageFull}"
-                                def exitCode = sh(
-                                    script: """
-                                        trivy image \
-                                          --insecure \
-                                          --format json \
-                                          --output trivy-image-${svc}-report.json \
-                                          --exit-code 1 \
-                                          --severity HIGH,CRITICAL \
-                                          --ignore-unfixed \
-                                          ${imageFull}
-                                    """,
-                                    returnStatus: true
-                                )
-                                if (exitCode != 0) {
-                                    failedServices.add(svc)
-                                    echo ">>> CẢNH BÁO: ${svc} có lỗ hổng HIGH/CRITICAL!"
+                            def failedServices = []
+
+                            services.each { svc ->
+                                if (env.CHANGED_FILES.contains("app_src/${svc}") || env.CHANGED_FILES.isEmpty()) {
+                                    def imageFull = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
+                                    if (fileExists("app_src/${svc}/Dockerfile")) {
+                                        echo ">>> Scanning image: ${imageFull}"
+                                        def exitCode = sh(
+                                            script: """
+                                                trivy image \\
+                                                  --insecure \\
+                                                  --username "\${HARBOR_USER}" \\
+                                                  --password "\${HARBOR_PASS}" \\
+                                                  --format json \\
+                                                  --output trivy-image-${svc}-report.json \\
+                                                  --exit-code 1 \\
+                                                  --severity HIGH,CRITICAL \\
+                                                  --ignore-unfixed \\
+                                                  ${imageFull}
+                                            """,
+                                            returnStatus: true
+                                        )
+                                        if (exitCode != 0) {
+                                            failedServices.add(svc)
+                                            echo ">>> CẢNH BÁO: ${svc} có lỗ hổng HIGH/CRITICAL!"
+                                        }
+                                    } else {
+                                        echo ">>> Bỏ qua quét Trivy cho ${svc}: không tìm thấy Dockerfile"
+                                    }
+                                } else {
+                                    echo ">>> Bỏ qua quét Trivy cho ${svc}: không có thay đổi"
                                 }
                             }
-                        }
 
-                        if (failedServices) {
-                            echo ">>> CẢNH BÁO: Trivy phát hiện lỗ hổng HIGH/CRITICAL trong: ${failedServices.join(', ')}. Xem report để biết chi tiết."
-                        } else {
-                            echo ">>> Tất cả Docker Image đều an toàn!"
+                            if (failedServices) {
+                                echo ">>> CẢNH BÁO: Trivy phát hiện lỗ hổng HIGH/CRITICAL trong: ${failedServices.join(', ')}. Xem report để biết chi tiết."
+                            } else {
+                                echo ">>> Tất cả Docker Image đều an toàn!"
+                            }
                         }
                     }
                 }
@@ -383,155 +521,134 @@ spec:
         }
 
         // =====================================================================
-        // STAGE 9: Push to Harbor - Task 2.4 [MỚI]
-        // Docker login bằng Harbor Robot Account credential từ Jenkins
+        // STAGE 9: GitOps - Update values.yaml & Trigger ArgoCD Auto-Sync
         // =====================================================================
-        stage('Push to Harbor') {
+        stage('GitOps - Update Image Tag & Push') {
             steps {
-                container('docker') {
-                    script {
-                        echo ">>> Đang push Docker Image lên Harbor Registry: ${HARBOR_REGISTRY}..."
+                container('tools') {
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId  : 'ssh-private-key',
+                        keyFileVariable: 'SSH_KEY_FILE',
+                        usernameVariable: 'SSH_USERNAME'
+                    )]) {
+                        script {
+                            // ── FIX LỖI DETACHED HEAD: Xác định tên nhánh thực tế ──────────
+                            // Lấy tên nhánh gốc từ Jenkins (ví dụ: origin/main hoặc main)
+                            def rawBranch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'main'
+                            if (rawBranch.contains('/')) {
+                                rawBranch = rawBranch.tokenize('/')[-1]
+                            }
+                            
+                            // Nếu biến cũ bị kẹt chữ 'HEAD', chúng ta ép hệ thống dùng tên nhánh thực tế vừa tìm được
+                            def targetBranch = (env.GIT_BRANCH_NAME == 'HEAD' || !env.GIT_BRANCH_NAME) ? rawBranch : env.GIT_BRANCH_NAME
+                            
+                            // Đọc danh sách service đã được build từ Stage 7
+                            def builtServices = env.BUILT_SERVICES
+                                ? env.BUILT_SERVICES.split(',').toList()
+                                : []
 
-                        withCredentials([
-                            usernamePassword(
-                                credentialsId: "${HARBOR_CREDS_ID}",
-                                usernameVariable: 'HARBOR_USER',
-                                passwordVariable: 'HARBOR_PASS'
-                            )
-                        ]) {
-                            // Login vào Harbor
-                            sh 'echo "$HARBOR_PASS" | docker login $HARBOR_REGISTRY -u "$HARBOR_USER" --password-stdin'
-
-                            def services = [
-                                'adservice', 'cartservice', 'checkoutservice',
-                                'currencyservice', 'emailservice', 'frontend',
-                                'paymentservice', 'productcatalogservice',
-                                'recommendationservice', 'shippingservice'
-                            ]
-
-                            services.each { svc ->
-                                if (fileExists("app_src/${svc}/Dockerfile")) {
-                                    def imageFull   = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:${IMAGE_TAG}"
-                                    def imageLatest = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${svc}:latest"
-                                    echo ">>> Pushing: ${imageFull}"
-                                    sh """
-                                        docker push ${imageFull}
-                                        docker push ${imageLatest}
-                                    """
-                                }
+                            if (builtServices.isEmpty()) {
+                                echo ">>> [GitOps] Không có service nào được build/push trong pipeline này. Bỏ qua cập nhật values.yaml."
+                                return
                             }
 
-                            // Logout để bảo mật
-                            sh 'docker logout $HARBOR_REGISTRY'
-                        }
+                            echo ">>> [GitOps] Sẽ cập nhật tag=${IMAGE_TAG} cho các service: ${builtServices.join(', ')} trên nhánh [${targetBranch}]"
 
-                        echo ">>> Push thành công! Image tag: ${IMAGE_TAG}"
-                    }
-                }
-            }
-        }
+                            // Mapping tên service (lowercase, liền) → YAML key trong values.yaml
+                            def serviceToYamlKey = [
+                                'adservice'             : 'adService',
+                                'cartservice'           : 'cartService',
+                                'checkoutservice'       : 'checkoutService',
+                                'currencyservice'       : 'currencyService',
+                                'emailservice'          : 'emailService',
+                                'frontend'              : 'frontend',
+                                'productcatalogservice': 'productCatalogService',
+                                'recommendationservice': 'recommendationService',
+                                'shippingservice'      : 'shippingService',
+                            ]
 
-        // =====================================================================
-        // STAGE 10: Update Helm Values (GitOps) - Task 2.4 [MỚI]
-        // Cập nhật images.tag trong helm-chart/microservices/values.yaml
-        // rồi commit/push lên Git repo để ArgoCD nhận diện
-        // =====================================================================
-        stage('Update Helm Values - GitOps') {
-            steps {
-                container('tools') {
-                    script {
-                        echo ">>> Đang cập nhật Helm values với image tag: ${IMAGE_TAG}..."
+                            // Sinh lệnh yq
+                            def yqUpdateCmds = builtServices.collect { svc ->
+                                def yamlKey = serviceToYamlKey[svc]
+                                if (yamlKey) {
+                                    return "yq -i '.${yamlKey}.tag = \"${IMAGE_TAG}\"' helm-chart/microservices/values.yaml"
+                                } else {
+                                    return "echo '>>> CẢNH BÁO: Không tìm thấy YAML key cho service \"${svc}\", bỏ qua.'"
+                                }
+                            }.join('\n                                ')
 
-                        withCredentials([
-                            usernamePassword(
-                                credentialsId: "${GIT_CREDS_ID}",
-                                usernameVariable: 'GIT_USER',
-                                passwordVariable: 'GIT_TOKEN'
-                            )
-                        ]) {
-                            // Cài yq nếu chưa có
-                            sh 'which yq || (wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_linux_amd64 && chmod +x /usr/local/bin/yq)'
+                            def yqVerifyCmds = builtServices.collect { svc ->
+                                def yamlKey = serviceToYamlKey[svc]
+                                yamlKey
+                                    ? "echo \"  ${svc}: \$(yq '.${yamlKey}.tag' helm-chart/microservices/values.yaml)\""
+                                    : ""
+                            }.findAll { it }.join('\n                                ')
 
-                            // Cấu hình git
+                            def servicesList = builtServices.join(', ')
+
                             sh """
+                                # ── 1. Cài đặt git và openssh-client cho Alpine ──────────────────
+                                echo '>>> Đang chuẩn bị môi trường hệ thống (Cài git & openssh)...'
+                                apk add --no-cache git openssh-client
+
+                                # ── 2. Đảm bảo đứng đúng Workspace và cấu hình Thư mục an toàn ──
+                                cd "${WORKSPACE}"
+                                git config --global --add safe.directory '*'
+
+                                # ── 3. Cài yq nếu chưa có ───────────────────────────────────────────
+                                if ! which yq > /dev/null 2>&1; then
+                                    echo '>>> Cài đặt yq...'
+                                    wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+                                    chmod +x /usr/local/bin/yq
+                                fi
+
+                                # ── 4. Cấu hình SSH từ key file được Jenkins inject ──────────────────
+                                mkdir -p ~/.ssh
+                                cp "\${SSH_KEY_FILE}" ~/.ssh/id_rsa
+                                chmod 600 ~/.ssh/id_rsa
+
+                                # Thêm github.com vào known_hosts để không bị treo hỏi Yes/No
+                                ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+                                # Ép git dùng đúng key file này cho mọi lệnh SSH
+                                export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+
+                                # ── 5. Cấu hình git identity ────────────────────────────────────────
                                 git config --global user.name  "${GIT_USER_NAME}"
                                 git config --global user.email "${GIT_USER_EMAIL}"
-                                git config --global --add safe.directory '*'
-                            """
 
-                            // Cập nhật images.tag trong values.yaml bằng yq
-                            sh """
-                                yq e '.images.tag = "${IMAGE_TAG}"' -i helm-chart/microservices/values.yaml
-                                yq e '.images.repository = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}"' -i helm-chart/microservices/values.yaml
-                            """
+                                # ── 6. Đảm bảo remote dùng SSH URL ──────────────────────────────────
+                                CURRENT_REMOTE=\$(git remote get-url origin)
+                                SSH_REMOTE=\$(echo "\${CURRENT_REMOTE}" \\
+                                    | sed 's|https://github.com/|git@github.com:|' \\
+                                    | sed 's|http://github.com/|git@github.com:|')
+                                echo ">>> Remote URL (SSH): \${SSH_REMOTE}"
 
-                            // Kiểm tra thay đổi
-                            sh 'git diff helm-chart/microservices/values.yaml'
+                                # ── 7. Cập nhật tag từng service đã build trong values.yaml ─────────
+                                ${yqUpdateCmds}
 
-                            // Commit và push
-                            sh """
+                                echo '>>> Tags sau khi cập nhật:'
+                                ${yqVerifyCmds}
+
+                                # ── 8. Stage & commit ───────────────────────────────────────────────
                                 git add helm-chart/microservices/values.yaml
-                                git commit -m "ci: update microservices image tag to ${IMAGE_TAG} [skip ci]"
-                                git push https://\${GIT_USER}:\${GIT_TOKEN}@\$(git remote get-url origin | sed 's|https://||') HEAD:main
+
+                                if git diff --cached --quiet; then
+                                    echo '>>> values.yaml không có thay đổi (tất cả tag đã trùng khớp), bỏ qua commit.'
+                                else
+                                    git commit -m "ci: update image tag to ${IMAGE_TAG} for [${servicesList}] [skip ci]"
+
+                                    # FIX: Đẩy trực tiếp commit HEAD lên đúng nhánh đích thực tế (ví dụ: main)
+                                    echo ">>> Tiến hành push code lên nhánh: ${targetBranch}"
+                                    git push "\${SSH_REMOTE}" HEAD:${targetBranch}
+
+                                    echo '>>> [GitOps] Đã push values.yaml lên Git thành công.'
+                                    echo '>>> ArgoCD sẽ tự động phát hiện thay đổi và tiến hành sync.'
+                                fi
+
+                                # ── 9. Dọn dẹp an toàn ─────────────────────────────────────────────
+                                rm -f ~/.ssh/id_rsa
                             """
-
-                            echo ">>> Helm values đã được cập nhật và push lên Git!"
-                        }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // STAGE 11: Trigger ArgoCD Sync - Task 2.4 [MỚI]
-        // Gọi ArgoCD CLI để sync app, không chờ auto-sync
-        // =====================================================================
-        stage('Trigger ArgoCD Sync') {
-            steps {
-                container('tools') {
-                    script {
-                        echo ">>> Đang trigger ArgoCD sync cho app: ${ARGOCD_APP_NAME}..."
-
-                        withCredentials([
-                            string(
-                                credentialsId: "${ARGOCD_CREDS_ID}",
-                                variable: 'ARGOCD_AUTH_TOKEN'
-                            )
-                        ]) {
-                            // Cài argocd CLI nếu chưa có
-                            sh """
-                                which argocd || (
-                                    curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 &&
-                                    chmod +x /usr/local/bin/argocd
-                                )
-                            """
-
-                            // Login ArgoCD bằng token
-                            sh """
-                                argocd login ${ARGOCD_SERVER} \
-                                  --auth-token \$ARGOCD_AUTH_TOKEN \
-                                  --grpc-web \
-                                  --insecure
-                            """
-
-                            // Trigger sync
-                            sh """
-                                argocd app sync ${ARGOCD_APP_NAME} \
-                                  --grpc-web \
-                                  --insecure \
-                                  --timeout 300
-                            """
-
-                            // Chờ ArgoCD sync hoàn thành và healthy
-                            sh """
-                                argocd app wait ${ARGOCD_APP_NAME} \
-                                  --health \
-                                  --grpc-web \
-                                  --insecure \
-                                  --timeout 300
-                            """
-
-                            echo ">>> ArgoCD sync thành công! App ${ARGOCD_APP_NAME} đang healthy."
                         }
                     }
                 }
@@ -564,9 +681,9 @@ spec:
             """
         }
         always {
-            // Dọn dẹp Docker images cũ để tiết kiệm disk
-            container('docker') {
-                sh 'docker image prune -f --filter "until=24h" || true'
+            // Dọn dẹp docker config.json chứa credentials sau khi pipeline hoàn tất
+            container('tools') {
+                sh 'rm -f /kaniko/.docker/config.json || true'
             }
         }
     }

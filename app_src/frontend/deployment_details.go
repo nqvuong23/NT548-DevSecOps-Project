@@ -8,7 +8,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"github.com/sirupsen/logrus"
 )
-
+ 
 var deploymentDetailsMap map[string]string
 var log *logrus.Logger
 

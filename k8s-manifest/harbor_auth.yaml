@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJoYXJib3IudnVvbmdkZXZvcHMuaW8udm4iOnsidXNlcm5hbWUiOiJhZG1pbiIsInBhc3N3b3JkIjoiYWRtaW4iLCJhdXRoIjoiWVdSdGFXNDZZV1J0YVc0PSJ9fX0=
+kind: Secret
+metadata:
+  name: harbor-pull-secret
+  namespace: app
+type: kubernetes.io/dockerconfigjson

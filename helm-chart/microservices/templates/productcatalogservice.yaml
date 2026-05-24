@@ -61,6 +61,8 @@ spec:
           type: {{ .Values.seccompProfile.type }}
         {{- end }}
       {{- end }}
+      imagePullSecrets:
+      - name: {{ .Values.imagePullSecrets.name }}
       containers:
       - name: server
         securityContext:
@@ -70,7 +72,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: {{ .Values.images.repository }}/{{ .Values.productCatalogService.name }}:{{ .Values.images.tag | default .Chart.AppVersion }}
+        image: {{ .Values.images.repository }}/{{ .Values.productCatalogService.name }}:{{ .Values.productCatalogService.tag | default .Chart.AppVersion }}
         ports:
         - containerPort: 3550
         env:

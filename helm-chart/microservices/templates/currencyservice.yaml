@@ -61,6 +61,8 @@ spec:
           type: {{ .Values.seccompProfile.type }}
         {{- end }}
       {{- end }}
+      imagePullSecrets:
+      - name: {{ .Values.imagePullSecrets.name }}
       containers:
       - name: server
         securityContext:
@@ -70,7 +72,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: {{ .Values.images.repository }}/{{ .Values.currencyService.name }}:{{ .Values.images.tag | default .Chart.AppVersion }}
+        image: {{ .Values.images.repository }}/{{ .Values.currencyService.name }}:{{ .Values.currencyService.tag | default .Chart.AppVersion }}
         ports:
         - name: grpc
           containerPort: 7000

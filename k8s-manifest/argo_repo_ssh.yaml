@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-private-repo-ssh
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository 
+stringData:
+  type: git
+  url: git@github.com:nqvuong23/NT548-DevSecOps-Project.git
+  sshPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+    QyNTUxOQAAACDcrqsqEG4p0t1oY11nPa4/9S1l3GLoSeZzOL1BrnF0xAAAAJi0cofftHKH
+    3wAAAAtzc2gtZWQyNTUxOQAAACDcrqsqEG4p0t1oY11nPa4/9S1l3GLoSeZzOL1BrnF0xA
+    AAAED73ChkrH9mcr2G7uUEt2f+o9WvY5R0cX2hWMqz7xELmtyuqyoQbinS3WhjXWc9rj/1
+    LWXcYuhJ5nM4vUGucXTEAAAAE1NTSCBrZXkgZm9yIEplbmtpbnMBAg==
+    -----END OPENSSH PRIVATE KEY-----

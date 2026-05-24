@@ -17,10 +17,9 @@
 # Declare variables to be passed into your templates.
 
 images:
-  repository: us-central1-docker.pkg.dev/google-samples/microservices-demo
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
-
+  repository: harbor.vuongdevops.io.vn/devsecops_nhom10
+imagePullSecrets:
+  name: harbor-pull-secret
 serviceAccounts:
   # Specifies whether service accounts should be created.
   create: true
@@ -28,19 +27,15 @@ serviceAccounts:
   annotations: {}
   # Annotations to add only for the cartservice app. This allows to follow the least privilege principle where only cartservice needs to connect to external database for example via Workload Identity.
   annotationsOnlyForCartservice: false
-
 networkPolicies:
   # Specifies if the NetworkPolicies are created or not. If true, one fine granular NetworkPolicy per app is created.
   create: false
-
 sidecars:
   # Specifies if the Sidecars are created or not. If true, one fine granular Sidecar per app is created.
   create: false
-
 authorizationPolicies:
   # Specifies if the AuthorizationPolicies are created or not. If true, one fine granular AuthorizationPolicy per app is created.
   create: false
-
 opentelemetryCollector:
   # Inject COLLECTOR_SERVICE_ADDR for services that read it from source code.
   enabled: true
@@ -48,11 +43,11 @@ opentelemetryCollector:
   # observation/otel-agent and observation/otel-gateway collector topology.
   create: false
   name: opentelemetrycollector
+  tag: "1b0cce0"
   endpoint: "$(NODE_IP):4317"
   useNodeIp: true
   # Specifies the project id for the otel collector. If set as "PROJECT_ID" (default value), an initContainer will automatically retrieve the project id value from the metadata server.
   projectId: "PROJECT_ID"
-
 appScheduling:
   affinity:
     nodeAffinity:
@@ -68,22 +63,19 @@ appScheduling:
       operator: Equal
       value: app
       effect: NoSchedule
-
 googleCloudOperations:
   profiler: false
   tracing: true
   metrics: false
-
 seccompProfile:
   enable: false
   type: RuntimeDefault
-
 securityContext:
   enable: true
-
 adService:
   create: true
   name: adservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 200m
@@ -91,10 +83,10 @@ adService:
     limits:
       cpu: 300m
       memory: 300Mi
-
 cartService:
   create: true
   name: cartservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 200m
@@ -102,10 +94,10 @@ cartService:
     limits:
       cpu: 300m
       memory: 256Mi
-
 checkoutService:
   create: true
   name: checkoutservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -113,10 +105,10 @@ checkoutService:
     limits:
       cpu: 200m
       memory: 128Mi
-
 currencyService:
   create: true
   name: currencyservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -124,10 +116,10 @@ currencyService:
     limits:
       cpu: 200m
       memory: 256Mi
-
 emailService:
   create: true
   name: emailservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -135,10 +127,10 @@ emailService:
     limits:
       cpu: 200m
       memory: 128Mi
-
 frontend:
   create: true
   name: frontend
+  tag: "1b0cce0"
   externalService: false
   cymbalBranding: false
   # One of: local, gcp, aws, azure, onprem, alibaba. When not set, defaults to "local" unless running in GKE, otherwise auto-sets to gcp.
@@ -147,7 +139,7 @@ frontend:
   virtualService:
     create: false
     hosts:
-    - "*"
+      - "*"
     gateway:
       name: asm-ingressgateway
       namespace: asm-ingress
@@ -160,10 +152,10 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
-
 loadGenerator:
-  create: true
+  create: false
   name: loadgenerator
+  tag: "1b0cce0"
   checkFrontendInitContainer: true
   resources:
     requests:
@@ -172,10 +164,10 @@ loadGenerator:
     limits:
       cpu: 500m
       memory: 512Mi
-
 paymentService:
-  create: true
+  create: false
   name: paymentservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -183,10 +175,10 @@ paymentService:
     limits:
       cpu: 200m
       memory: 256Mi
-
 productCatalogService:
   create: true
   name: productcatalogservice
+  tag: "9dfd136"
   # Specifies an extra latency to any request on productcatalogservice, by default no extra latency.
   extraLatency: ""
   resources:
@@ -196,10 +188,10 @@ productCatalogService:
     limits:
       cpu: 200m
       memory: 128Mi
-
 recommendationService:
   create: true
   name: recommendationservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -207,10 +199,10 @@ recommendationService:
     limits:
       cpu: 200m
       memory: 450Mi
-
 shippingService:
   create: true
   name: shippingservice
+  tag: "1b0cce0"
   resources:
     requests:
       cpu: 100m
@@ -218,7 +210,6 @@ shippingService:
     limits:
       cpu: 200m
       memory: 128Mi
-
 cartDatabase:
   # Specifies the type of the cartservice's database, could be either redis or spanner.
   type: redis
@@ -234,9 +225,9 @@ cartDatabase:
     endpointAddress: ""
     endpointPort: ""
     certificate: ""
-
 # @TODO: This service is not currently available in Helm.
 # https://github.com/GoogleCloudPlatform/microservices-demo/tree/main/kustomize/components/shopping-assistant
 shoppingAssistantService:
   create: false
   name: shoppingassistantservice
+  tag: "1b0cce0"

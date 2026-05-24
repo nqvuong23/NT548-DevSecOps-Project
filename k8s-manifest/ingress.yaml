@@ -4,16 +4,16 @@ metadata:
   name: jenkins-ingress
   namespace: jenkins
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    # cert-manager.io/issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 
 spec:
   ingressClassName: nginx
-  # tls:
-  # - hosts:
-  #   - jenkins.vuongdevops.io.vn
-  #   secretName: jenkins-tls-secret
+  tls:
+  - hosts:
+    - jenkins.vuongdevops.io.vn
+    secretName: jenkins-tls-secret
   rules:
     - host: jenkins.vuongdevops.io.vn
       http:
@@ -33,16 +33,16 @@ metadata:
   name: sonarqube
   namespace: sonarqube
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    # cert-manager.io/issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 
 spec:
   ingressClassName: nginx
-  # tls:
-  # - hosts:
-  #   - jenkins.vuongdevops.io.vn
-  #   secretName: sonarqube-tls-secret
+  tls:
+  - hosts:
+    - sonarqube.vuongdevops.io.vn
+    secretName: sonarqube-tls-secret
   rules:
     - host: sonarqube.vuongdevops.io.vn
       http:
@@ -62,16 +62,16 @@ metadata:
   name: jaeger
   namespace: tracing
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    # cert-manager.io/issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 
 spec:
   ingressClassName: nginx
-  # tls:
-  # - hosts:
-  #   - jenkins.vuongdevops.io.vn
-  #   secretName: jaeger-tls-secret
+  tls:
+  - hosts:
+    - jaeger.vuongdevops.io.vn
+    secretName: jaeger-tls-secret
   rules:
     - host: jaeger.vuongdevops.io.vn
       http:
@@ -91,16 +91,16 @@ metadata:
   name: app
   namespace: app
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    # cert-manager.io/issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 
 spec:
   ingressClassName: nginx
-  # tls:
-  # - hosts:
-  #   - app.vuongdevops.io.vn
-  #   secretName: app-tls-secret
+  tls:
+  - hosts:
+    - app.vuongdevops.io.vn
+    secretName: app-tls-secret
   rules:
     - host: app.vuongdevops.io.vn
       http:

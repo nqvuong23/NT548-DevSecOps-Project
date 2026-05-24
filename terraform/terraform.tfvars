@@ -18,6 +18,7 @@ dns_subdomains = [
   "jenkins",
   "sonarqube",
   "argocd",
+  "argorollouts",
   "harbor",
   "grafana",
   "defectdojo",
@@ -53,7 +54,24 @@ gke_namespaces = [
   "security",
   "app"
 ]
-nginx_helm_namespace        = "app"
-nginx_helm_repo_url         = "https://kubernetes.github.io/ingress-nginx"
-cert_manager_helm_repo_url  = "oci://quay.io/jetstack/charts"
+nginx_helm_namespace = "app"
+nginx_helm_repo_url  = "https://kubernetes.github.io/ingress-nginx"
+
 cert_manager_helm_namespace = "security"
+cert_manager_helm_repo_url  = "oci://quay.io/jetstack/charts"
+
+jenkins_helm_namespace = "jenkins"
+jenkins_helm_repo_url  = "https://charts.jenkins.io"
+
+sonarqube_helm_namespace = "sonarqube"
+sonarqube_helm_repo_url  = "https://SonarSource.github.io/helm-chart-sonarqube"
+
+harbor_helm_namespace = "harbor"
+harbor_helm_repo_url  = "https://helm.goharbor.io"
+
+vault_helm_namespace = "vault"
+vault_helm_repo_url  = "https://helm.releases.hashicorp.com"
+
+argocd_helm_namespace        = "argocd"
+argo_rollouts_helm_namespace = "argo-rollouts"
+argo_helm_repo_url           = "https://argoproj.github.io/argo-helm"

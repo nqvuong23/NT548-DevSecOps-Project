@@ -65,6 +65,8 @@ spec:
         seccompProfile:
           type: {{ .Values.seccompProfile.type }}
         {{- end }}
+      imagePullSecrets:
+      - name: {{ .Values.imagePullSecrets.name }}
       containers:
       - name: server
         securityContext:
@@ -74,7 +76,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: {{ .Values.images.repository }}/{{ .Values.cartService.name }}:{{ .Values.images.tag | default .Chart.AppVersion }}
+        image: {{ .Values.images.repository }}/{{ .Values.cartService.name }}:{{ .Values.cartService.tag | default .Chart.AppVersion }}
         ports:
         - containerPort: 7070
         env:
@@ -244,6 +246,8 @@ spec:
           type: {{ .Values.seccompProfile.type }}
         {{- end }}
       {{- end }}
+      imagePullSecrets:
+      - name: {{ .Values.imagePullSecrets.name }}
       containers:
       - name: redis
         securityContext:

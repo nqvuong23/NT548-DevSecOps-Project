@@ -9,7 +9,7 @@ spec:
     # Email address used for ACME registration
     email: nguyenquocvuong160705@gmail.com
     # The ACME certificate profile
-    # profile: tlsserver
+    profile: tlsserver
     # Name of a secret used to store the ACME account private key
     privateKeySecretRef:
       name: letsencrypt-prod
