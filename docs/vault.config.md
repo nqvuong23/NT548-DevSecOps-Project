@@ -80,7 +80,6 @@ Sử dụng `root_token` trong file `cluster-keys.json` (được tạo ra từ 
 - **Bước 4** (Tạo các secret): Nhấn vào secret engine vừa tạo > Chọn **Create secret** và tạo lần lượt các secrets sau:
   - Path = `sonarqube`: Key = `token` - Value = `<token lấy được khi tạo bên SonarQube Web UI>`
   - Path = `harbor`: Key = `username` - Value = `<Name của Harbor Robot Account>`, Key = `password` - Value = `<Secret của Harbor Robot Account>` 
-  - Path = `argocd`: Key = `token` - Value = `<Token của ArgoCD>`
   - Nhấn Save.
 
 ---
@@ -108,9 +107,6 @@ path "devsecops_nhom10_kv/data/sonarqube" {
   capabilities = ["read"]
 }
 path "devsecops_nhom10_kv/data/harbor" {
-  capabilities = ["read"]
-}
-path "devsecops_nhom10_kv/data/argocd" {
   capabilities = ["read"]
 }
 ```
