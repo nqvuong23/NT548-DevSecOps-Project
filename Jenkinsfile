@@ -34,6 +34,9 @@ spec:
   # Kaniko đọc credentials tại /kaniko/.docker/config.json
   - name: kaniko-docker-config
     emptyDir: {}
+  # OWASP ZAP baseline requires /zap/wrk to be a mounted volume for file outputs.
+  - name: zap-workdir
+    emptyDir: {}
 
   containers:
   # Container JNLP mặc định để kết nối với Jenkins Controller
@@ -69,6 +72,9 @@ spec:
     image: zaproxy/zap-stable:2.16.1
     command: [sleep]
     args: [infinity]
+    volumeMounts:
+    - name: zap-workdir
+      mountPath: /zap/wrk
 
   # Container Kaniko để Build & Push Image lên Harbor (Task 2.4)
   # Không cần privileged mode — đây là lý do dùng Kaniko thay Docker-in-Docker
@@ -101,6 +107,16 @@ spec:
             name: 'BUILD_ALL_IMAGES',
             defaultValue: true,
             description: 'Build and push all application images to Harbor so GitOps has a complete image set for the same commit.'
+        )
+        booleanParam(
+            name: 'DAST_ENFORCE',
+            defaultValue: false,
+            description: 'Fail the pipeline when OWASP ZAP finds High risk alerts. Enable for Scenario 3 DAST gate demo.'
+        )
+        string(
+            name: 'DAST_HIGH_THRESHOLD',
+            defaultValue: '0',
+            description: 'Allowed number of High risk ZAP alerts before failing when DAST_ENFORCE=true.'
         )
     }
 
@@ -540,30 +556,52 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
 
         // =====================================================================
         // STAGE 9: DAST - OWASP ZAP Baseline Gate - Scenario 3
-        // Chạy trước GitOps promote. Nếu ZAP phát hiện High risk thì dừng
-        // pipeline, production vẫn giữ revision hiện tại vì chưa cập nhật tag mới.
+        // DAST luôn tạo report. Mặc định không block pipeline để luồng deploy/kịch bản 2
+        // không bị ảnh hưởng; bật DAST_ENFORCE=true khi cần demo gate của kịch bản 3.
         // =====================================================================
         stage('DAST - OWASP ZAP Baseline') {
             steps {
                 container('zap') {
                     script {
-                        echo ">>> Đang chạy OWASP ZAP baseline scan trên ${DAST_TARGET_URL}..."
-                        def zapExit = sh(
-                            script: '''
+                        def dastEnforce = params.DAST_ENFORCE == true
+                        def dastHighThreshold = (params.DAST_HIGH_THRESHOLD ?: '0').trim()
+                        echo ">>> Đang chạy OWASP ZAP baseline scan trên ${DAST_TARGET_URL} (enforce=${dastEnforce}, high_threshold=${dastHighThreshold})..."
+                        def zapExit = 0
+                        withEnv(["DAST_ENFORCE=${dastEnforce}", "DAST_HIGH_THRESHOLD=${dastHighThreshold}"]) {
+                            zapExit = sh(
+                                script: '''
+                                set -eu
+                                rm -f /zap/wrk/zap-report.json /zap/wrk/zap-report.html "${WORKSPACE}/zap-report.json" "${WORKSPACE}/zap-report.html" "${WORKSPACE}/zap-summary.json"
+
+                                cd /zap/wrk
+                                set +e
                                 zap-baseline.py \
                                   -t "${DAST_TARGET_URL}" \
                                   -J zap-report.json \
                                   -r zap-report.html \
                                   -m 3 \
-                                  -I || true
+                                  -I
+                                zap_status=$?
+                                set -e
+
+                                cp /zap/wrk/zap-report.* "${WORKSPACE}/" 2>/dev/null || true
+                                cd "${WORKSPACE}"
+
+                                if [ ! -s zap-report.json ]; then
+                                  echo "ZAP did not produce zap-report.json (exit=${zap_status}). This is a DAST setup/runtime error, not a vulnerability threshold failure."
+                                  exit 3
+                                fi
 
                                 python3 - <<'PY'
 import json
+import os
 import sys
 
 with open("zap-report.json", "r", encoding="utf-8") as fh:
     report = json.load(fh)
 
+threshold = int(os.getenv("DAST_HIGH_THRESHOLD", "0") or "0")
+enforce = os.getenv("DAST_ENFORCE", "false").lower() == "true"
 high_alerts = []
 for site in report.get("site", []):
     for alert in site.get("alerts", []):
@@ -572,27 +610,42 @@ for site in report.get("site", []):
         if risk_code == "3" or risk_desc.lower().startswith("high"):
             high_alerts.append(alert.get("name", "unknown-alert"))
 
+summary = {
+    "target": os.getenv("DAST_TARGET_URL", ""),
+    "enforce": enforce,
+    "high_threshold": threshold,
+    "high_count": len(high_alerts),
+    "high_alerts": sorted(set(high_alerts)),
+}
+with open("zap-summary.json", "w", encoding="utf-8") as fh:
+    json.dump(summary, fh, indent=2)
+
 if high_alerts:
     print("ZAP detected High risk findings:")
     for name in sorted(set(high_alerts)):
         print(f"- {name}")
-    sys.exit(1)
+    if enforce and len(high_alerts) > threshold:
+        print(f"DAST_ENFORCE=true and High findings ({len(high_alerts)}) exceeded threshold ({threshold}).")
+        sys.exit(1)
+    print(f"DAST_ENFORCE=false or High findings within threshold ({threshold}); continuing and archiving reports.")
+else:
+    print("ZAP gate passed: no High risk findings.")
 
-print("ZAP gate passed: no High risk findings.")
 PY
                             ''',
-                            returnStatus: true
-                        )
+                                returnStatus: true
+                            )
+                        }
 
                         if (zapExit != 0) {
-                            error "OWASP ZAP DAST gate failed. Xem zap-report.html/json trong Artifacts."
+                            error "OWASP ZAP DAST gate/setup failed. Xem zap-summary.json và zap-report.html/json trong Artifacts."
                         }
                     }
                 }
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'zap-report.*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'zap-report.*, zap-summary.json', allowEmptyArchive: true
                 }
             }
         }

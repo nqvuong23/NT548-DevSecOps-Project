@@ -164,6 +164,18 @@ kubectl get prometheusrule nt548-scenario3-security-alerts -n monitoring
 kubectl get analysistemplate frontend-security-gate -n app
 ```
 
+### 3.1b. Jenkins DAST gate
+
+Pipeline mac dinh chay ZAP va luu `zap-report.html`, `zap-report.json`, `zap-summary.json` nhung khong block deploy (`DAST_ENFORCE=false`) de kịch bản 2 va luong GitOps binh thuong khong bi anh huong.
+
+Khi muon demo security gate cua kịch bản 3 tren Jenkins:
+
+1. Mo `https://jenkins.vuongdevops.io.vn` bang `admin/admin`
+2. Chon job `DevSecOps-Pipeline-Nhom10` -> `Build with Parameters`
+3. Dat `DAST_ENFORCE=true`, `DAST_HIGH_THRESHOLD=0`
+4. Neu ZAP phat hien High risk finding, stage `DAST - OWASP ZAP Baseline` fail truoc buoc GitOps promote; production van giu revision hien tai
+5. Tai artifacts `zap-summary.json` va `zap-report.html/json` de chung minh finding va nguong gate
+
 ### 3.2. Hardcoded secret detection
 
 Chay tren PowerShell host:

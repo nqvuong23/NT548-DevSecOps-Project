@@ -209,6 +209,12 @@ Chứng minh môi trường production có đủ lớp chặn bảo mật từ C
 4. Argo Rollouts giữ nguyên production ở version cũ (không có gì để rollback vì prod chưa đổi)
 5. DefectDojo nhận finding, tạo ticket để developer fix
 
+**Chế độ vận hành Jenkins DAST:**
+
+- Mặc định `DAST_ENFORCE=false`: pipeline vẫn chạy OWASP ZAP và archive `zap-report.html`, `zap-report.json`, `zap-summary.json`, nhưng không chặn GitOps deploy để kịch bản 2 và luồng triển khai bình thường không bị ảnh hưởng.
+- Khi demo security gate của kịch bản 3, chạy Jenkins với `DAST_ENFORCE=true` và `DAST_HIGH_THRESHOLD=0`: nếu ZAP có High risk finding vượt ngưỡng, stage `DAST - OWASP ZAP Baseline` fail trước bước GitOps promote.
+- Nếu ZAP không tạo được report, pipeline fail với lỗi setup/runtime DAST thay vì hiểu nhầm là vượt ngưỡng vulnerability.
+
 **Kết quả cần thấy được:**
 
 - Grafana/Prometheus: alert `SecurityEventCritical` hoặc `Scenario3RolloutSecurityGateFailed`
