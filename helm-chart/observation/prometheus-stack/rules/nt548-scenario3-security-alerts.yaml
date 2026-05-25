@@ -14,15 +14,15 @@ spec:
           expr: |
             (
               sum by (rule, priority) (
-                increase(falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[5m])
+                increase(falco_events_total{priority=~"Critical|Error|Warning|4|5|6"}[5m])
               )
               or
               sum by (rule, priority) (
-                increase(falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[5m])
+                increase(falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|4|5|6"}[5m])
               )
               or
-              sum by (rule, priority) (
-                increase(falcosecurity_falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[5m])
+              sum by (rule, priority, priority_raw, k8s_ns_name) (
+                increase(falcosecurity_falcosidekick_falco_events_total{priority_raw=~"critical|error|warning"}[5m])
               )
             ) > 0
           for: 30s
@@ -31,7 +31,7 @@ spec:
             scenario: security-scenario-3
           annotations:
             summary: Falco detected a critical runtime security event
-            description: "Falco rule {{ $labels.rule }} emitted priority {{ $labels.priority }} during Scenario 3."
+            description: "Falco rule {{ $labels.rule }} emitted priority={{ $labels.priority }} priority_raw={{ $labels.priority_raw }} during Scenario 3."
 
         - alert: Scenario3RolloutSecurityGateFailed
           expr: |

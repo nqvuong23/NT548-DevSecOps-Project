@@ -150,6 +150,8 @@ Noi voi giang vien:
 
 "Kich ban 3 khong chi la script demo. Moi truong production co Falco/Falcosidekick de bat runtime threat, Kyverno de audit baseline policy, NetworkPolicy quarantine de co co che isolate pod, DefectDojo de quan ly finding, Jenkins co DAST ZAP gate, va Argo Rollouts co security analysis gate truoc khi promote frontend."
 
+Security gate cua frontend chi tinh Falco event trong namespace `app`, nen event tu Jenkins/ArgoCD khong lam hong rollout binh thuong; khi demo runtime threat, pod `scenario3-runtime-threat` nam trong namespace `app` van lam gate fail dung y do.
+
 ### 3.1. Preflight production
 
 ```bash

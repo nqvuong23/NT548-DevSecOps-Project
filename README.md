@@ -223,6 +223,7 @@ Chứng minh môi trường production có đủ lớp chặn bảo mật từ C
 - `kubectl get clusterpolicy`: policy `nt548-scenario3-workload-baseline` Ready
 - `kubectl get networkpolicy`: policy `scenario3-quarantine` tồn tại trong namespace `app`
 - DefectDojo UI: truy cập HTTPS và đăng nhập `admin/admin`
+- Frontend rollout security gate chỉ xét Falco event trong namespace `app`, tránh event từ Jenkins/ArgoCD làm ảnh hưởng deploy bình thường nhưng vẫn bắt được pod runtime threat của kịch bản 3.
 
 ---
 

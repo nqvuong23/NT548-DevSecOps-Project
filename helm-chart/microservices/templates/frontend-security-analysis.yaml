@@ -16,10 +16,12 @@ spec:
           address: {{ .Values.frontend.rollout.securityGate.prometheusAddress | quote }}
           query: |
             (
-              (sum(increase(falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
+              (sum(increase(falcosecurity_falcosidekick_falco_events_total{k8s_ns_name="{{ .Release.Namespace }}",priority_raw=~"critical|error|warning"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
               +
-              (sum(increase(falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
+              (sum(increase(falcosecurity_falcosidekick_falco_events_total{k8s_ns_name="{{ .Release.Namespace }}",priority=~"4|5|6|Critical|Error|Warning"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
               +
-              (sum(increase(falcosecurity_falcosidekick_falco_events_total{priority=~"Critical|Error|Warning|0|1|2|3|4"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
+              (sum(increase(falco_events_total{k8s_ns_name="{{ .Release.Namespace }}",priority=~"4|5|6|Critical|Error|Warning"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
+              +
+              (sum(increase(falcosidekick_falco_events_total{k8s_ns_name="{{ .Release.Namespace }}",priority=~"4|5|6|Critical|Error|Warning"}[{{ .Values.frontend.rollout.securityGate.lookback }}])) or vector(0))
             )
 {{- end }}
