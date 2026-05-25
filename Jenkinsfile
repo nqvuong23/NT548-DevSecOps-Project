@@ -154,7 +154,12 @@ spec:
                     env.IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
                     env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
                     env.CHANGED_FILES = sh(script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
-                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES}"
+                    env.LAST_COMMIT_MESSAGE = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+                    env.SKIP_CI = env.LAST_COMMIT_MESSAGE.contains('[skip ci]') ? 'true' : 'false'
+                    echo ">>> Branch: ${env.GIT_BRANCH_NAME} | Image Tag: ${env.IMAGE_TAG} | Changed Files: ${env.CHANGED_FILES} | SKIP_CI=${env.SKIP_CI}"
+                    if (env.SKIP_CI == 'true') {
+                        echo ">>> Commit message contains [skip ci]; security scans, image builds, DAST, and GitOps promote will be skipped."
+                    }
                 }
             }
         }
@@ -163,6 +168,7 @@ spec:
         // STAGE 2: Secret Scanning (Gitleaks) - Task 2.2
         // =====================================================================
         stage('Secret Scanning - Gitleaks') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('gitleaks') {
                     script {
@@ -192,6 +198,7 @@ spec:
         // Lấy SonarQube token từ Vault thay vì Jenkins credential
         // =====================================================================
         stage('SAST - SonarQube') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('sonar-scanner') {
                     withVault(vaultSecrets: [
@@ -218,6 +225,7 @@ spec:
         // STAGE 4: Quality Gate Check - Task 2.3
         // =====================================================================
         stage('Quality Gate Check') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('sonar-scanner') {
                     withVault(vaultSecrets: [
@@ -280,6 +288,7 @@ spec:
         // STAGE 5: IaC Scan - Checkov - Task 2.3
         // =====================================================================
         stage('IaC Scan - Checkov') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('checkov') {
                     script {
@@ -307,6 +316,7 @@ spec:
         // STAGE 6: SCA - Trivy Dependency Scan - Task 2.3
         // =====================================================================
         stage('SCA - Trivy Dependency Scan') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('trivy') {
                     script {
@@ -350,6 +360,7 @@ spec:
         //   bộ các lệnh kaniko và chạy trong một sh call.
         // =====================================================================
         stage('Build & Push Images via Kaniko') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 // Bước 1: Lấy credentials từ Vault và ghi docker config.json
                 // vào shared volume để Kaniko có thể đọc khi xác thực với Harbor.
@@ -481,6 +492,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
         // Trivy tự authenticate với Harbor qua --username / --password.
         // =====================================================================
         stage('Image Scan - Trivy') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('trivy') {
                     withVault(vaultSecrets: [
@@ -560,6 +572,7 @@ echo '>>> Kaniko đã build và push thành công: ${imageFull}'
         // không bị ảnh hưởng; bật DAST_ENFORCE=true khi cần demo gate của kịch bản 3.
         // =====================================================================
         stage('DAST - OWASP ZAP Baseline') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('zap') {
                     script {
@@ -654,6 +667,7 @@ PY
         // STAGE 10: GitOps - Update values.yaml & Trigger ArgoCD Auto-Sync
         // =====================================================================
         stage('GitOps - Update Image Tag & Push') {
+            when { expression { env.SKIP_CI != 'true' } }
             steps {
                 container('tools') {
                     withCredentials([sshUserPrivateKey(
