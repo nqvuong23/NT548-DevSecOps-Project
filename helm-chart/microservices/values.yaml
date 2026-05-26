@@ -75,7 +75,7 @@ securityContext:
 adService:
   create: true
   name: adservice
-  tag: "02ff19e"
+  tag: "42d6707"
   resources:
     requests:
       cpu: 200m
@@ -86,7 +86,7 @@ adService:
 cartService:
   create: true
   name: cartservice
-  tag: "02ff19e"
+  tag: "42d6707"
   resources:
     requests:
       cpu: 200m
@@ -97,7 +97,7 @@ cartService:
 checkoutService:
   create: true
   name: checkoutservice
-  tag: "02ff19e"
+  tag: "42d6707"
   resources:
     requests:
       cpu: 100m
