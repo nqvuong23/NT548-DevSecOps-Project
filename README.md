@@ -4,16 +4,17 @@
 
 1. [Cấu Trúc Repo](#cấu-trúc-repo)
 2. [Architecture of DevSecOps Pipeline](#architecture-of-devsecops-pipeline)
-3. [Tech Stack](#tech-stack)
-4. [Pipeline Workflow](#pipeline-workflow)
-5. [Các kịch bản Demo](#các-kịch-bản-demo)
-6. [Task List](#task-list)
-7. [Nhóm 1 – Triển Khai Hạ Tầng với Terraform](#nhóm-1--triển-khai-hạ-tầng-với-terraform)
-8. [Nhóm 2 – Triển Khai CI Pipeline (Jenkins + Security Scanning)](#nhóm-2--triển-khai-ci-pipeline-jenkins--security-scanning)
-9. [Nhóm 3 – Triển Khai CD Pipeline (ArgoCD, Argo Rollouts & Microservice)](#nhóm-3--triển-khai-cd-pipeline-argocd-argo-rollouts--microservice)
-10. [Nhóm 4 – Triển Khai Observation Stack](#nhóm-4--triển-khai-observation-stack)
-11. [Nhóm 5 – Các Thành Phần Khác](#nhóm-5--các-thành-phần-khác)
-12. [Phụ Lục – Thứ Tự Triển Khai Khuyến Nghị](#phụ-lục--thứ-tự-triển-khai-khuyến-nghị)
+3. [Cloud Infrastructure Diagram](#cloud-infrastructure-diagram)
+4. [Tech Stack](#tech-stack)
+5. [Pipeline Workflow](#pipeline-workflow)
+6. [Các kịch bản Demo](#các-kịch-bản-demo)
+7. [Task List](#task-list)
+8. [Nhóm 1 – Triển Khai Hạ Tầng với Terraform](#nhóm-1--triển-khai-hạ-tầng-với-terraform)
+9. [Nhóm 2 – Triển Khai CI Pipeline (Jenkins + Security Scanning)](#nhóm-2--triển-khai-ci-pipeline-jenkins--security-scanning)
+10. [Nhóm 3 – Triển Khai CD Pipeline (ArgoCD, Argo Rollouts & Microservice)](#nhóm-3--triển-khai-cd-pipeline-argocd-argo-rollouts--microservice)
+11. [Nhóm 4 – Triển Khai Observation Stack](#nhóm-4--triển-khai-observation-stack)
+12. [Nhóm 5 – Các Thành Phần Khác](#nhóm-5--các-thành-phần-khác)
+13. [Phụ Lục – Thứ Tự Triển Khai Khuyến Nghị](#phụ-lục--thứ-tự-triển-khai-khuyến-nghị)
 
 ---
 
@@ -72,6 +73,12 @@ devsecops-project/
 ## Architecture of DevSecOps Pipeline
 
 ![Hình 1. DevSecOps Pipeline](./docs/pipeline_v3.png)
+
+---
+
+## Cloud Infrastructure Diagram
+
+![Hình 2. Cloud Infrastructure Diagram ](./docs/architecture.svg)
 
 ---
 
